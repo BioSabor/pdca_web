@@ -79,17 +79,9 @@ function MultiCheckDropdown({ options, selected, onChange, placeholder }) {
     );
 }
 
-// Dropdown inline para editar usuarios asignados (renderiza con portal)
+// Dropdown inline para editar usuarios asignados (anclado a la celda)
 function UserCheckDropdown({ users, selected, onToggle, onClose, anchorEl }) {
     const dropRef = useRef(null);
-    const [pos, setPos] = useState({ top: 0, left: 0 });
-
-    useEffect(() => {
-        if (anchorEl) {
-            const rect = anchorEl.getBoundingClientRect();
-            setPos({ top: rect.bottom + 2, left: rect.left });
-        }
-    }, [anchorEl]);
 
     useEffect(() => {
         function handleClickOutside(e) {
@@ -100,11 +92,10 @@ function UserCheckDropdown({ users, selected, onToggle, onClose, anchorEl }) {
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, [onClose, anchorEl]);
 
-    return createPortal(
+    return (
         <div
             ref={dropRef}
-            className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg min-w-[200px] max-h-48 overflow-y-auto"
-            style={{ position: "fixed", top: pos.top, left: pos.left, zIndex: 9999 }}
+            className="absolute left-0 mt-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg min-w-[200px] max-h-48 overflow-y-auto z-30"
         >
             {users.map(u => (
                 <label key={u.id} className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800">
@@ -118,8 +109,7 @@ function UserCheckDropdown({ users, selected, onToggle, onClose, anchorEl }) {
             <div className="border-t border-gray-200 dark:border-gray-700 p-2">
                 <button onClick={onClose} className="text-xs text-blue-600 dark:text-blue-300 hover:underline w-full text-center">Cerrar</button>
             </div>
-        </div>,
-        document.body
+        </div>
     );
 }
 
@@ -607,8 +597,10 @@ export default function ProjectDetail() {
                                         />
                                     </td>
                                     {/* Responsable: portal dropdown */}
-                                    <td className="px-3 py-2"
-                                        ref={(el) => { if (el) userCellRefs.current[action.id] = el; }}>
+                                    <td
+                                        className="px-3 py-2 relative"
+                                        ref={(el) => { if (el) userCellRefs.current[action.id] = el; }}
+                                    >
                                         <div
                                             onClick={() => setEditingUsersActionId(isEditingUsers ? null : action.id)}
                                             className="cursor-pointer text-gray-700 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded px-1 py-0.5 min-h-[24px]"

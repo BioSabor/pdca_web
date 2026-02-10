@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, Settings, LogOut, Menu, X, Sun, Moon } from "lucide-react";
+import { LayoutDashboard, Settings, LogOut, Menu, X, Sun, Moon, BarChart3 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
 export default function TopNav() {
@@ -14,6 +14,7 @@ export default function TopNav() {
     ];
 
     if (currentUser?.role === "admin") {
+        menuItems.push({ name: "Informes", icon: BarChart3, path: "/reports" });
         menuItems.push({ name: "Configuracion", icon: Settings, path: "/admin" });
     }
 

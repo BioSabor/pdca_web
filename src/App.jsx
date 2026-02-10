@@ -8,6 +8,7 @@ import CreateProject from "./pages/CreateProject";
 import ProjectDetail from "./pages/ProjectDetail";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminRoute from "./components/AdminRoute";
+import Reports from "./pages/Reports";
 
 function App() {
   return (
@@ -25,6 +26,14 @@ function App() {
             <Route path="/" element={<Dashboard />} />
             <Route path="/projects/new" element={<CreateProject />} />
             <Route path="/projects/:id" element={<ProjectDetail />} />
+            <Route
+              path="/reports"
+              element={
+                <AdminRoute>
+                  <Reports />
+                </AdminRoute>
+              }
+            />
             <Route
               path="/admin"
               element={
