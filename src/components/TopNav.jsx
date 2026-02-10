@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, Settings, LogOut, Menu, X, Sun, Moon, BarChart3 } from "lucide-react";
+import { LayoutDashboard, Settings, LogOut, Menu, X, Sun, Moon, BarChart3, CalendarDays } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
 export default function TopNav() {
@@ -10,7 +10,8 @@ export default function TopNav() {
     const [theme, setTheme] = useState("light");
 
     const menuItems = [
-        { name: "Panel Principal", icon: LayoutDashboard, path: "/" }
+        { name: "Panel Principal", icon: LayoutDashboard, path: "/" },
+        { name: "Calendario", icon: CalendarDays, path: "/calendar" }
     ];
 
     if (currentUser?.role === "admin") {

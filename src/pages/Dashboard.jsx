@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { projectService, actionService, statusService, userService, departmentService } from "../services/projectService";
 import { Link, useNavigate } from "react-router-dom";
-import { Plus, ChevronRight, Calendar, Users, AlertTriangle, Clock, CheckCircle, Archive, RotateCcw, Building2 } from "lucide-react";
+import { Plus, ChevronRight, ChevronDown, Calendar, Users, AlertTriangle, Clock, CheckCircle, Archive, RotateCcw, Building2 } from "lucide-react";
 
 export default function Dashboard() {
     const { currentUser } = useAuth();
@@ -138,81 +138,55 @@ export default function Dashboard() {
                 const totalPendAll = sortedStats.reduce((sum, [, s]) => sum + s.pending, 0);
                 const totalPriorAll = sortedStats.reduce((sum, [, s]) => sum + s.priority, 0);
                 return (
-                    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 mb-8 md:max-w-4xl md:mx-auto">
-                        {/* Mobile: collapsible */}
-                        <div className="md:hidden">
-                            <div
-                                className="flex items-center justify-between px-3 py-2.5 cursor-pointer"
-                                onClick={() => setShowUserStats(!showUserStats)}
-                            >
-                                <span className="text-xs font-bold text-gray-800 dark:text-gray-100">Pendientes por Usuario</span>
-                                <div className="flex items-center gap-2">
-                                    <span className="bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-200 px-1.5 py-0.5 rounded-full text-[10px] font-semibold">{totalPendAll}</span>
-                                    {totalPriorAll > 0 && <span className="bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-200 px-1.5 py-0.5 rounded-full text-[10px] font-semibold">{totalPriorAll} ⚡</span>}
-                                    <span className="text-[10px] text-gray-400 dark:text-gray-500">{showUserStats ? "▲" : "▼"}</span>
+                    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 mb-8 md:max-w-lg md:mx-auto">
+                        {/* Collapsible header (both mobile & desktop) */}
+                        <div
+                            className="flex items-center justify-between px-3 md:px-4 py-2.5 md:py-3 cursor-pointer select-none hover:bg-gray-50 dark:hover:bg-gray-700/30 rounded-xl transition"
+                            onClick={() => setShowUserStats(!showUserStats)}
+                        >
+                            <div className="flex items-center gap-2">
+                                <div className="bg-blue-100 dark:bg-blue-900/40 p-1.5 rounded-lg">
+                                    <Users className="w-3.5 h-3.5 md:w-4 md:h-4 text-blue-600" />
                                 </div>
+                                <span className="text-xs md:text-sm font-bold text-gray-800 dark:text-gray-100">Pendientes por Usuario</span>
                             </div>
-                            {showUserStats && (
-                                <div className="border-t border-gray-100 dark:border-gray-700 px-2 pb-2">
-                                    <div className="max-h-[132px] overflow-y-auto">
-                                        <table className="w-full text-xs">
-                                            <thead className="sticky top-0 bg-white dark:bg-gray-800 z-10">
-                                                <tr className="border-b border-gray-200 dark:border-gray-700">
-                                                    <th className="text-left py-1 px-2 text-gray-500 dark:text-gray-400 font-medium">Usuario</th>
-                                                    <th className="text-center py-1 px-1 text-gray-500 dark:text-gray-400 font-medium w-12">Pend.</th>
-                                                    <th className="text-center py-1 px-1 text-gray-500 dark:text-gray-400 font-medium w-12">Prior.</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {sortedStats.map(([uid, stat]) => (
-                                                    <tr key={uid} className="border-b border-gray-50 dark:border-gray-700">
-                                                        <td className="py-1 px-2 text-gray-800 dark:text-gray-100 truncate max-w-[140px]">{getUserName(uid)}</td>
-                                                        <td className="py-1 px-1 text-center">
-                                                            <span className="bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-200 px-1.5 py-0.5 rounded-full text-[10px] font-semibold">{stat.pending}</span>
-                                                        </td>
-                                                        <td className="py-1 px-1 text-center">
-                                                            {stat.priority > 0
-                                                                ? <span className="bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-200 px-1.5 py-0.5 rounded-full text-[10px] font-semibold">{stat.priority}</span>
-                                                                : <span className="text-gray-400 dark:text-gray-500 text-[10px]">0</span>}
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            )}
+                            <div className="flex items-center gap-2">
+                                <span className="bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-200 px-2 py-0.5 rounded-full text-[10px] md:text-xs font-semibold">{totalPendAll}</span>
+                                {totalPriorAll > 0 && <span className="bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-200 px-2 py-0.5 rounded-full text-[10px] md:text-xs font-semibold">{totalPriorAll} ⚡</span>}
+                                <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${showUserStats ? "rotate-180" : ""}`} />
+                            </div>
                         </div>
-                        {/* Desktop: always visible */}
-                        <div className="hidden md:block p-5">
-                            <h2 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-3 text-center">Pendientes por Usuario</h2>
-                            <div className="max-h-[400px] overflow-y-auto">
-                                <table className="w-full text-sm">
-                                    <thead className="sticky top-0 bg-white dark:bg-gray-800 z-10">
-                                        <tr className="border-b border-gray-200 dark:border-gray-700">
-                                            <th className="text-left py-2 px-3 text-gray-500 dark:text-gray-400 font-medium text-xs">Usuario</th>
-                                            <th className="text-center py-2 px-3 text-gray-500 dark:text-gray-400 font-medium text-xs">Pendientes</th>
-                                            <th className="text-center py-2 px-3 text-gray-500 dark:text-gray-400 font-medium text-xs">Prioritarias</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {sortedStats.map(([uid, stat]) => (
-                                            <tr key={uid} className="border-b border-gray-50 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/40">
-                                                <td className="py-2 px-3 text-gray-800 dark:text-gray-100">{getUserName(uid)}</td>
-                                                <td className="py-2 px-3 text-center">
-                                                    <span className="bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-200 px-2 py-0.5 rounded-full text-xs font-semibold">{stat.pending}</span>
-                                                </td>
-                                                <td className="py-2 px-3 text-center">
-                                                    {stat.priority > 0
-                                                        ? <span className="bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-200 px-2 py-0.5 rounded-full text-xs font-semibold">{stat.priority}</span>
-                                                        : <span className="text-gray-400 dark:text-gray-500 text-xs">0</span>}
-                                                </td>
+                        {/* Expanded table */}
+                        {showUserStats && (
+                            <div className="border-t border-gray-100 dark:border-gray-700 px-2 md:px-3 pb-2 md:pb-3">
+                                <div className="max-h-[132px] md:max-h-[176px] overflow-y-auto">
+                                    <table className="w-full text-xs md:text-sm">
+                                        <thead className="sticky top-0 bg-white dark:bg-gray-800 z-10">
+                                            <tr className="border-b border-gray-200 dark:border-gray-700">
+                                                <th className="text-left py-1.5 md:py-2 px-2 md:px-3 text-gray-500 dark:text-gray-400 font-medium text-[11px] md:text-xs">Usuario</th>
+                                                <th className="text-center py-1.5 md:py-2 px-1 md:px-3 text-gray-500 dark:text-gray-400 font-medium text-[11px] md:text-xs w-16 md:w-20">Pend.</th>
+                                                <th className="text-center py-1.5 md:py-2 px-1 md:px-3 text-gray-500 dark:text-gray-400 font-medium text-[11px] md:text-xs w-16 md:w-20">Prior.</th>
                                             </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+                                        </thead>
+                                        <tbody>
+                                            {sortedStats.map(([uid, stat]) => (
+                                                <tr key={uid} className="border-b border-gray-50 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/40">
+                                                    <td className="py-1.5 md:py-2 px-2 md:px-3 text-gray-800 dark:text-gray-100 truncate max-w-[140px] md:max-w-[200px]">{getUserName(uid)}</td>
+                                                    <td className="py-1.5 md:py-2 px-1 md:px-3 text-center">
+                                                        <span className="bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-200 px-1.5 md:px-2 py-0.5 rounded-full text-[10px] md:text-xs font-semibold">{stat.pending}</span>
+                                                    </td>
+                                                    <td className="py-1.5 md:py-2 px-1 md:px-3 text-center">
+                                                        {stat.priority > 0
+                                                            ? <span className="bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-200 px-1.5 md:px-2 py-0.5 rounded-full text-[10px] md:text-xs font-semibold">{stat.priority}</span>
+                                                            : <span className="text-gray-400 dark:text-gray-500 text-[10px] md:text-xs">0</span>}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
-                        </div>
+                        )}
                     </div>
                 );
             })()}
