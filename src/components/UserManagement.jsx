@@ -181,14 +181,14 @@ export default function UserManagement() {
         }
     }
 
-    if (loading) return <div className="p-8">Cargando usuarios...</div>;
+    if (loading) return <div className="p-8 text-gray-600 dark:text-gray-300">Cargando usuarios...</div>;
 
     return (
         <div className="max-w-6xl">
             <div className="flex justify-between items-center mb-6">
                 <div>
-                    <h2 className="text-xl font-bold text-gray-800">Gestión de Usuarios</h2>
-                    <p className="text-gray-500 text-sm">Administra usuarios, roles y contraseñas.</p>
+                    <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">Gestión de Usuarios</h2>
+                    <p className="text-gray-500 dark:text-gray-400 text-sm">Administra usuarios, roles y contraseñas.</p>
                 </div>
                 <button
                     onClick={() => setShowCreateModal(true)}
@@ -200,50 +200,50 @@ export default function UserManagement() {
             </div>
 
             {/* Tabla de usuarios */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-visible">
-                <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
+            <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-x-auto">
+                <table className="min-w-[720px] divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead className="bg-gray-50 dark:bg-gray-800">
                         <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Usuario</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rol</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Usuario</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Nombre</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Rol</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Acciones</th>
                         </tr>
                     </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
+                    <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-800">
                         {users.map((user) => (
                             <tr key={user.id}>
                                 <td className="px-6 py-4 whitespace-nowrap">
                                     <div className="flex items-center">
-                                        <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold mr-4">
+                                        <div className="h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-900/40 flex items-center justify-center text-blue-600 dark:text-blue-200 font-bold mr-4">
                                             {(user.displayName || user.email || "?")[0]?.toUpperCase()}
                                         </div>
-                                        <div className="text-sm text-gray-900">{user.email || <span className="text-xs text-gray-400 font-medium bg-gray-100 px-2 py-0.5 rounded-full">Sin acceso (Entidad)</span>}</div>
+                                        <div className="text-sm text-gray-900 dark:text-gray-100">{user.email || <span className="text-xs text-gray-400 dark:text-gray-500 font-medium bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded-full">Sin acceso (Entidad)</span>}</div>
                                     </div>
                                 </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-200">
                                     {editingId === user.id ? (
                                         <div className="flex items-center gap-2">
                                             <input
                                                 type="text"
                                                 value={editName}
                                                 onChange={(e) => setEditName(e.target.value)}
-                                                className="border rounded px-2 py-1 text-sm w-full"
+                                                className="border border-gray-300 dark:border-gray-700 rounded px-2 py-1 text-sm w-full dark:bg-gray-900 dark:text-gray-100"
                                                 autoFocus
                                             />
                                             <button onClick={() => saveEditName(user.id)} className="text-green-600 hover:text-green-800">
                                                 <Check className="w-4 h-4" />
                                             </button>
-                                            <button onClick={() => setEditingId(null)} className="text-gray-400 hover:text-gray-600">
+                                            <button onClick={() => setEditingId(null)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
                                                 <X className="w-4 h-4" />
                                             </button>
                                         </div>
                                     ) : (
                                         <div className="flex items-center gap-2 group">
-                                            {user.displayName || <span className="text-gray-400 italic">Sin nombre</span>}
+                                            {user.displayName || <span className="text-gray-400 dark:text-gray-500 italic">Sin nombre</span>}
                                             <button
                                                 onClick={() => startEditing(user)}
-                                                className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-blue-600 transition"
+                                                className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-blue-600 dark:hover:text-blue-300 transition"
                                                 title="Editar nombre"
                                             >
                                                 <Pencil className="w-3 h-3" />
@@ -255,7 +255,7 @@ export default function UserManagement() {
                                     <select
                                         value={user.role || 'user'}
                                         onChange={(e) => handleRoleChange(user.id, e.target.value)}
-                                        className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md border"
+                                        className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 dark:border-gray-700 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md border dark:bg-gray-900 dark:text-gray-100"
                                         disabled={user.id === currentUser.uid}
                                     >
                                         <option value="user">Usuario</option>
@@ -266,7 +266,7 @@ export default function UserManagement() {
                                     {user.email && (
                                         <button
                                             onClick={() => openResetModal(user.email)}
-                                            className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                                            className="text-blue-600 hover:text-blue-800 dark:text-blue-300 dark:hover:text-blue-200 flex items-center gap-1"
                                             title="Restablecer contraseña"
                                         >
                                             <KeyRound className="w-4 h-4" />
@@ -274,7 +274,7 @@ export default function UserManagement() {
                                     )}
                                     <button
                                         onClick={() => handleDeleteUser(user.id)}
-                                        className="text-red-600 hover:text-red-900"
+                                        className="text-red-600 hover:text-red-900 dark:text-red-300 dark:hover:text-red-200"
                                         disabled={user.id === currentUser.uid}
                                         title="Eliminar usuario"
                                     >
@@ -290,55 +290,55 @@ export default function UserManagement() {
             {/* Modal Crear Usuario */}
             {showCreateModal && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
+                    <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-md p-6 border border-gray-100 dark:border-gray-700">
                         <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-xl font-bold text-gray-800">Crear Nuevo Usuario</h2>
-                            <button onClick={() => setShowCreateModal(false)} className="text-gray-400 hover:text-gray-600">
+                            <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">Crear Nuevo Usuario</h2>
+                            <button onClick={() => setShowCreateModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
                                 <X className="w-5 h-5" />
                             </button>
                         </div>
                         <form onSubmit={handleCreateUser} className="space-y-4">
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Nombre Completo</label>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nombre Completo</label>
                                 <input
                                     type="text"
                                     required
                                     value={newUserName}
                                     onChange={(e) => setNewUserName(e.target.value)}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none dark:bg-gray-900 dark:text-gray-100"
                                     placeholder="Nombre del usuario"
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Correo Electrónico</label>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Correo Electrónico</label>
                                 <input
                                     type="email"
                                     value={newUserEmail}
                                     onChange={(e) => setNewUserEmail(e.target.value)}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none dark:bg-gray-900 dark:text-gray-100"
                                     placeholder="Opcional - Dejar vacío para usuario virtual"
                                 />
                             </div>
                             {newUserEmail && (
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Contraseña</label>
                                     <input
                                         type="password"
                                         required
                                         minLength={6}
                                         value={newUserPassword}
                                         onChange={(e) => setNewUserPassword(e.target.value)}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none dark:bg-gray-900 dark:text-gray-100"
                                         placeholder="Mínimo 6 caracteres"
                                     />
                                 </div>
                             )}
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Rol</label>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Rol</label>
                                 <select
                                     value={newUserRole}
                                     onChange={(e) => setNewUserRole(e.target.value)}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none dark:bg-gray-900 dark:text-gray-100"
                                 >
                                     <option value="user">Usuario</option>
                                     <option value="admin">Administrador</option>
@@ -348,7 +348,7 @@ export default function UserManagement() {
                                 <button
                                     type="button"
                                     onClick={() => setShowCreateModal(false)}
-                                    className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition"
+                                    className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition"
                                 >
                                     Cancelar
                                 </button>
@@ -368,40 +368,40 @@ export default function UserManagement() {
             {/* Modal Reset Password */}
             {showResetModal && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
+                    <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-md p-6 border border-gray-100 dark:border-gray-700">
                         <div className="flex justify-between items-center mb-6">
-                            <h2 className="text-xl font-bold text-gray-800">Restablecer Contraseña</h2>
-                            <button onClick={() => setShowResetModal(false)} className="text-gray-400 hover:text-gray-600">
+                            <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">Restablecer Contraseña</h2>
+                            <button onClick={() => setShowResetModal(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
                                 <X className="w-5 h-5" />
                             </button>
                         </div>
-                        <p className="text-sm text-gray-600 mb-4">
+                        <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
                             Para el usuario: <strong>{resetEmail}</strong>
                         </p>
                         <form onSubmit={handleResetPassword} className="space-y-4">
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Contraseña Actual (del usuario)</label>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Contraseña Actual (del usuario)</label>
                                 <input
                                     type="password"
                                     required
                                     value={resetCurrentPwd}
                                     onChange={(e) => setResetCurrentPwd(e.target.value)}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none dark:bg-gray-900 dark:text-gray-100"
                                     placeholder="Necesaria para verificar identidad"
                                 />
-                                <p className="text-xs text-gray-500 mt-1">
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                                     Debes conocer la contraseña actual del usuario para cambiarla. Si no la recuerdas, elimina el usuario y créalo de nuevo.
                                 </p>
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Nueva Contraseña</label>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Nueva Contraseña</label>
                                 <input
                                     type="password"
                                     required
                                     minLength={6}
                                     value={resetNewPwd}
                                     onChange={(e) => setResetNewPwd(e.target.value)}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none dark:bg-gray-900 dark:text-gray-100"
                                     placeholder="Mínimo 6 caracteres"
                                 />
                             </div>
@@ -409,7 +409,7 @@ export default function UserManagement() {
                                 <button
                                     type="button"
                                     onClick={() => setShowResetModal(false)}
-                                    className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition"
+                                    className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition"
                                 >
                                     Cancelar
                                 </button>

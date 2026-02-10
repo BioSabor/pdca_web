@@ -48,20 +48,20 @@ export default function StatusConfig() {
         }
     }
 
-    if (loading) return <div className="p-8">Cargando configuración...</div>;
+    if (loading) return <div className="p-8 text-gray-600 dark:text-gray-300">Cargando configuración...</div>;
 
     return (
         <div className="max-w-4xl">
             <div className="mb-6">
-                <h2 className="text-xl font-bold text-gray-800">Configuración de Estados</h2>
-                <p className="text-gray-500 text-sm">Define los estados disponibles para las acciones, sus colores y su tipo.</p>
+                <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">Configuración de Estados</h2>
+                <p className="text-gray-500 dark:text-gray-400 text-sm">Define los estados disponibles para las acciones, sus colores y su tipo.</p>
             </div>
 
             <div className="space-y-3 mb-6">
                 {statuses.map((status, index) => (
-                    <div key={status.id} className="flex items-center gap-3 bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
-                        <GripVertical className="w-5 h-5 text-gray-300" />
-                        <span className="text-gray-400 text-sm font-mono w-6">{index + 1}</span>
+                    <div key={status.id} className="flex items-center gap-3 bg-white dark:bg-gray-900 p-4 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
+                        <GripVertical className="w-5 h-5 text-gray-300 dark:text-gray-500" />
+                        <span className="text-gray-400 dark:text-gray-500 text-sm font-mono w-6">{index + 1}</span>
                         <input
                             type="color"
                             value={status.color}
@@ -72,12 +72,12 @@ export default function StatusConfig() {
                             type="text"
                             value={status.label}
                             onChange={(e) => updateStatus(status.id, "label", e.target.value)}
-                            className="flex-1 border border-gray-300 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                            className="flex-1 border border-gray-300 dark:border-gray-700 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none dark:bg-gray-900 dark:text-gray-100"
                         />
                         <select
                             value={status.type || "none"}
                             onChange={(e) => updateStatus(status.id, "type", e.target.value)}
-                            className="border border-gray-300 rounded px-2 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                            className="border border-gray-300 dark:border-gray-700 rounded px-2 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none dark:bg-gray-900 dark:text-gray-100"
                         >
                             <option value="none">Sin tipo</option>
                             <option value="start">📅 Inicio</option>
@@ -91,7 +91,7 @@ export default function StatusConfig() {
                         </div>
                         <button
                             onClick={() => removeStatus(status.id)}
-                            className="text-red-400 hover:text-red-600 p-1"
+                            className="text-red-400 hover:text-red-600 dark:text-red-300 dark:hover:text-red-200 p-1"
                         >
                             <Trash2 className="w-4 h-4" />
                         </button>
@@ -99,7 +99,7 @@ export default function StatusConfig() {
                 ))}
             </div>
 
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-6 text-sm text-blue-700">
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 mb-6 text-sm text-blue-700 dark:text-blue-200">
                 <strong>Tipos de estado:</strong>
                 <ul className="mt-1 ml-4 list-disc">
                     <li><strong>Inicio:</strong> Al seleccionar este estado, se rellena automáticamente la fecha de inicio de la acción.</li>
@@ -111,7 +111,7 @@ export default function StatusConfig() {
             <div className="flex justify-between">
                 <button
                     onClick={addStatus}
-                    className="flex items-center gap-2 px-4 py-2 text-blue-600 border border-blue-300 rounded-lg hover:bg-blue-50 transition"
+                    className="flex items-center gap-2 px-4 py-2 text-blue-600 dark:text-blue-300 border border-blue-300 dark:border-blue-700 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition"
                 >
                     <Plus className="w-4 h-4" />
                     Añadir Estado

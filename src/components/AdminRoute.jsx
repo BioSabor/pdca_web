@@ -2,7 +2,11 @@ import { Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 export default function AdminRoute({ children }) {
-    const { currentUser } = useAuth();
+    const { currentUser, authLoading } = useAuth();
+
+    if (authLoading) {
+        return null;
+    }
 
     // Check if user is logged in
     if (!currentUser) {

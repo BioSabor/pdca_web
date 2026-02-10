@@ -48,7 +48,7 @@ function MultiCheckDropdown({ options, selected, onChange, placeholder }) {
                 ref={btnRef}
                 type="button"
                 onClick={handleOpen}
-                className="flex items-center gap-2 border border-gray-300 rounded-lg px-3 py-1.5 text-sm bg-white hover:bg-gray-50 min-w-[140px] justify-between"
+                className="flex items-center gap-2 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-1.5 text-sm bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800 min-w-[140px] justify-between"
             >
                 <span className="truncate text-left">
                     {selected.length === 0
@@ -57,19 +57,19 @@ function MultiCheckDropdown({ options, selected, onChange, placeholder }) {
                             ? selectedLabels.join(", ")
                             : `${selectedLabels.length} seleccionados`}
                 </span>
-                <ChevronDown className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                <ChevronDown className="w-3 h-3 text-gray-400 dark:text-gray-500 flex-shrink-0" />
             </button>
             {open && createPortal(
                 <div
                     ref={dropRef}
-                    className="bg-white border border-gray-200 rounded-lg shadow-lg min-w-[200px] max-h-48 overflow-y-auto"
+                    className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg min-w-[200px] max-h-48 overflow-y-auto"
                     style={{ position: "fixed", top: pos.top, left: pos.left, zIndex: 9999 }}
                 >
                     {options.map(opt => (
-                        <label key={opt.value} className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-gray-50">
+                        <label key={opt.value} className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800">
                             <input type="checkbox" checked={selected.includes(opt.value)} onChange={() => toggle(opt.value)} className="w-4 h-4 text-blue-600 rounded" />
                             {opt.color && <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: opt.color }}></span>}
-                            <span className="text-sm text-gray-700">{opt.label}</span>
+                            <span className="text-sm text-gray-700 dark:text-gray-200">{opt.label}</span>
                         </label>
                     ))}
                 </div>,
@@ -103,20 +103,20 @@ function UserCheckDropdown({ users, selected, onToggle, onClose, anchorEl }) {
     return createPortal(
         <div
             ref={dropRef}
-            className="bg-white border border-gray-200 rounded-lg shadow-lg min-w-[200px] max-h-48 overflow-y-auto"
+            className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg min-w-[200px] max-h-48 overflow-y-auto"
             style={{ position: "fixed", top: pos.top, left: pos.left, zIndex: 9999 }}
         >
             {users.map(u => (
-                <label key={u.id} className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-gray-50">
+                <label key={u.id} className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800">
                     <input type="checkbox" checked={selected.includes(u.id)} onChange={() => onToggle(u.id)} className="w-4 h-4 text-blue-600 rounded" />
-                    <span className="text-sm text-gray-700">
+                    <span className="text-sm text-gray-700 dark:text-gray-200">
                         {u.displayName || u.email}
-                        {!u.email && <span className="text-xs text-gray-400 ml-1">(Entidad)</span>}
+                        {!u.email && <span className="text-xs text-gray-400 dark:text-gray-500 ml-1">(Entidad)</span>}
                     </span>
                 </label>
             ))}
-            <div className="border-t p-2">
-                <button onClick={onClose} className="text-xs text-blue-600 hover:underline w-full text-center">Cerrar</button>
+            <div className="border-t border-gray-200 dark:border-gray-700 p-2">
+                <button onClick={onClose} className="text-xs text-blue-600 dark:text-blue-300 hover:underline w-full text-center">Cerrar</button>
             </div>
         </div>,
         document.body
@@ -222,6 +222,17 @@ export default function ProjectDetail() {
 
     function getStatusConfig(statusId) {
         return statuses.find(s => s.id === statusId) || { label: statusId, color: "#9CA3AF", type: "none" };
+    }
+
+    function getReadableTextColor(hexColor) {
+        if (!hexColor || typeof hexColor !== "string") return "#111827";
+        const clean = hexColor.replace("#", "");
+        if (clean.length !== 6) return "#111827";
+        const r = parseInt(clean.slice(0, 2), 16);
+        const g = parseInt(clean.slice(2, 4), 16);
+        const b = parseInt(clean.slice(4, 6), 16);
+        const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+        return luminance > 0.6 ? "#111827" : "#F9FAFB";
     }
 
     function autoResize(el) {
@@ -383,12 +394,13 @@ export default function ProjectDetail() {
         return cfg.type === 'end';
     }).length;
     const progressPercentage = totalActions > 0 ? Math.round((completedOrDiscarded / totalActions) * 100) : 0;
+    const hasObservations = actions.some(a => (a.observations || "").trim().length > 0);
 
 
     return (
         <div>
             <div className="mb-6">
-                <Link to="/" className="flex items-center text-gray-500 hover:text-gray-700 mb-4">
+                <Link to="/" className="flex items-center text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 mb-4">
                     <ArrowLeft className="w-4 h-4 mr-2" />
                     Volver al Panel
                 </Link>
@@ -399,17 +411,17 @@ export default function ProjectDetail() {
                             type="text"
                             value={editTitle}
                             onChange={(e) => setEditTitle(e.target.value)}
-                            className="text-3xl font-bold text-gray-800 w-full border border-gray-300 rounded-lg px-3 py-1 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                            className="text-3xl font-bold text-gray-800 dark:text-gray-100 w-full border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-1 focus:ring-2 focus:ring-blue-500 focus:outline-none dark:bg-gray-900"
                         />
                         <textarea
                             value={editDescription}
                             onChange={(e) => setEditDescription(e.target.value)}
                             rows={2}
                             placeholder="Descripción del proyecto"
-                            className="w-full text-gray-600 border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none resize-none"
+                            className="w-full text-gray-600 dark:text-gray-300 border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none resize-none dark:bg-gray-900"
                         />
                         <div className="flex items-center gap-2">
-                            <span className="text-sm text-gray-600">Usuarios asignados:</span>
+                            <span className="text-sm text-gray-600 dark:text-gray-300">Usuarios asignados:</span>
                             <MultiCheckDropdown
                                 options={userOptions}
                                 selected={editAssignedUsers}
@@ -418,7 +430,7 @@ export default function ProjectDetail() {
                             />
                         </div>
                         <div className="flex items-center gap-2">
-                            <span className="text-sm text-gray-600">Departamentos:</span>
+                            <span className="text-sm text-gray-600 dark:text-gray-300">Departamentos:</span>
                             <MultiCheckDropdown
                                 options={deptOptions}
                                 selected={editAssignedDepartments}
@@ -428,24 +440,24 @@ export default function ProjectDetail() {
                         </div>
                         <div className="flex gap-2 pt-2">
                             <button onClick={saveProjectEdits} className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">Guardar</button>
-                            <button onClick={() => setEditingProject(false)} className="px-3 py-1.5 text-gray-600 text-sm border border-gray-300 rounded-lg hover:bg-gray-50">Cancelar</button>
+                            <button onClick={() => setEditingProject(false)} className="px-3 py-1.5 text-gray-600 dark:text-gray-300 text-sm border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">Cancelar</button>
                         </div>
                     </div>
                 ) : (
                     <div className="flex items-start justify-between">
                         <div>
-                            <h1 className="text-2xl md:text-3xl font-bold text-gray-800">{project.title}</h1>
-                            <p className="text-gray-600 mt-1">{project.description}</p>
+                            <h1 className="text-2xl md:text-3xl font-bold text-gray-800 dark:text-gray-100">{project.title}</h1>
+                            <p className="text-gray-600 dark:text-gray-300 mt-1">{project.description}</p>
                         </div>
                         {isCreator && (
                             <div className="flex gap-2 ml-4 flex-shrink-0">
-                                <button onClick={() => setShowGantt(true)} className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition" title="Ver Diagrama de Gantt">
+                                <button onClick={() => setShowGantt(true)} className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-900/30 rounded-lg transition" title="Ver Diagrama de Gantt">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-bar-chart-horizontal-big"><path d="M3 3v18h18" /><rect width="12" height="4" x="7" y="5" rx="1" /><rect width="7" height="4" x="7" y="13" rx="1" /></svg>
                                 </button>
-                                <button onClick={startEditProject} className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition" title="Editar proyecto">
+                                <button onClick={startEditProject} className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition" title="Editar proyecto">
                                     <Pencil className="w-4 h-4" />
                                 </button>
-                                <button onClick={handleDeleteProject} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition" title="Eliminar proyecto">
+                                <button onClick={handleDeleteProject} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition" title="Eliminar proyecto">
                                     <Trash className="w-4 h-4" />
                                 </button>
                             </div>
@@ -455,11 +467,11 @@ export default function ProjectDetail() {
 
                 {/* Barra de progreso */}
                 <div className="mt-4 mb-2">
-                    <div className="flex justify-between text-xs text-gray-500 mb-1">
+                    <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mb-1">
                         <span>Progreso del proyecto</span>
                         <span>{progressPercentage}%</span>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
+                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 overflow-hidden">
                         <div
                             className="bg-blue-600 h-2.5 rounded-full transition-all duration-500"
                             style={{ width: `${progressPercentage}%` }}
@@ -468,17 +480,17 @@ export default function ProjectDetail() {
                 </div>
 
                 <div className="flex items-center gap-2 mt-4 flex-wrap">
-                    <span className="text-xs text-gray-500">Usuarios:</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">Usuarios:</span>
                     {projectUsers.map(u => (
-                        <span key={u.id} className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                        <span key={u.id} className="text-xs bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-200 px-2 py-0.5 rounded-full">
                             {u.displayName || u.email}
                         </span>
                     ))}
                     {projectDepartments.length > 0 && (
                         <>
-                            <span className="text-xs text-gray-500 ml-2">Departamentos:</span>
+                            <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">Departamentos:</span>
                             {projectDepartments.map(d => (
-                                <span key={d.id} className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                <span key={d.id} className="text-xs bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-200 px-2 py-0.5 rounded-full flex items-center gap-1">
                                     <Building2 className="w-3 h-3" />
                                     {d.name}
                                 </span>
@@ -493,7 +505,7 @@ export default function ProjectDetail() {
                 <div className="flex gap-2">
                     <button
                         onClick={() => setShowFilters(!showFilters)}
-                        className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition ${hasActiveFilters ? 'bg-blue-50 border-blue-300 text-blue-700' : 'border-gray-300 text-gray-600 hover:bg-gray-50'
+                        className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition ${hasActiveFilters ? 'bg-blue-50 border-blue-300 text-blue-700 dark:bg-blue-900/30 dark:border-blue-700 dark:text-blue-200' : 'border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
                             }`}
                     >
                         <Filter className="w-4 h-4" />
@@ -516,25 +528,25 @@ export default function ProjectDetail() {
 
             {/* Filtros multi-select */}
             {showFilters && (
-                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4 flex flex-wrap gap-4 items-end">
+                <div className="bg-gray-50 dark:bg-gray-800/70 border border-gray-200 dark:border-gray-700 rounded-lg p-4 mb-4 flex flex-wrap gap-4 items-end">
                     <div>
-                        <label className="block text-xs font-medium text-gray-500 mb-1">Usuarios</label>
+                        <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Usuarios</label>
                         <MultiCheckDropdown options={userOptions} selected={filterUsers} onChange={setFilterUsers} placeholder="Todos" />
                     </div>
                     <div>
-                        <label className="block text-xs font-medium text-gray-500 mb-1">Estados</label>
+                        <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Estados</label>
                         <MultiCheckDropdown options={statusOptions} selected={filterStatuses} onChange={setFilterStatuses} placeholder="Todos" />
                     </div>
                     <div>
-                        <label className="block text-xs font-medium text-gray-500 mb-1">Fecha inicio desde</label>
-                        <input type="date" value={filterDateFrom} onChange={(e) => setFilterDateFrom(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm" />
+                        <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Fecha inicio desde</label>
+                        <input type="date" value={filterDateFrom} onChange={(e) => setFilterDateFrom(e.target.value)} className="border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-1.5 text-sm dark:bg-gray-900 dark:text-gray-100" />
                     </div>
                     <div>
-                        <label className="block text-xs font-medium text-gray-500 mb-1">Fecha inicio hasta</label>
-                        <input type="date" value={filterDateTo} onChange={(e) => setFilterDateTo(e.target.value)} className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm" />
+                        <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Fecha inicio hasta</label>
+                        <input type="date" value={filterDateTo} onChange={(e) => setFilterDateTo(e.target.value)} className="border border-gray-300 dark:border-gray-700 rounded-lg px-3 py-1.5 text-sm dark:bg-gray-900 dark:text-gray-100" />
                     </div>
                     {hasActiveFilters && (
-                        <button onClick={clearFilters} className="text-xs text-red-500 hover:text-red-700 px-2 py-1.5">
+                        <button onClick={clearFilters} className="text-xs text-red-500 hover:text-red-700 dark:text-red-300 dark:hover:text-red-200 px-2 py-1.5">
                             Limpiar filtros
                         </button>
                     )}
@@ -542,31 +554,31 @@ export default function ProjectDetail() {
             )}
 
             {/* Tabla de acciones */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200 text-sm">
-                    <thead className="bg-gray-50">
+            <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-x-auto">
+                <table className={`w-full ${hasObservations ? "min-w-[1200px]" : "min-w-[980px]"} divide-y divide-gray-200 dark:divide-gray-700 text-sm`}>
+                    <thead className="bg-gray-50 dark:bg-gray-800">
                         <tr>
-                            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase w-8">#</th>
-                            <th className="px-1 py-3 text-center text-xs font-medium text-gray-500 uppercase w-8" title="Prioridad">⚡</th>
-                            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase w-24">Fecha</th>
-                            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase min-w-[300px]">Acción</th>
-                            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase min-w-[150px]">Responsable</th>
-                            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase w-32">Estado</th>
-                            <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase w-24 leading-3">F. Inicio<br />Propuesta</th>
-                            <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase w-24 leading-3">F. Fin<br />Propuesta</th>
-                            <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase w-24 leading-3">F. Inicio<br />Real</th>
-                            <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase w-24 leading-3">F. Fin<br />Real</th>
-                            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase min-w-[200px]">Observaciones</th>
-                            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase w-10"></th>
+                            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase w-8">#</th>
+                            <th className="px-1 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase w-8" title="Prioridad">⚡</th>
+                            <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase w-16">Fecha</th>
+                            <th className={`px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase ${hasObservations ? "min-w-[420px]" : "min-w-[560px]"} w-full`}>Acción</th>
+                            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase min-w-[140px]">Responsable</th>
+                            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase w-32">Estado</th>
+                            <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase w-16 leading-3">F. Inicio<br />Propuesta</th>
+                            <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase w-16 leading-3">F. Fin<br />Propuesta</th>
+                            <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase w-16 leading-3">F. Inicio<br />Real</th>
+                            <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase w-16 leading-3">F. Fin<br />Real</th>
+                            <th className={`px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase ${hasObservations ? "min-w-[320px]" : "min-w-[140px]"} ${hasObservations ? "w-[30%]" : "w-[12%]"}`}>Observaciones</th>
+                            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase w-10"></th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-100">
+                    <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                         {filteredActions.map((action, index) => {
                             const statusCfg = getStatusConfig(action.status);
                             const isEditingUsers = editingUsersActionId === action.id;
                             return (
-                                <tr key={action.id} className={`hover:bg-gray-50 transition ${action.priority ? 'bg-red-50/50' : ''}`}>
-                                    <td className="px-3 py-2 text-gray-400">{action.seqId || "-"}</td>
+                                <tr key={action.id} className={`hover:bg-gray-50 dark:hover:bg-gray-800 transition ${action.priority ? 'bg-red-50/50 dark:bg-red-900/20' : ''}`}>
+                                    <td className="px-3 py-2 text-gray-400 dark:text-gray-500">{action.seqId || "-"}</td>
                                     <td className="px-3 py-2 text-center">
                                         <input
                                             type="checkbox"
@@ -576,7 +588,7 @@ export default function ProjectDetail() {
                                             title="Marcar como prioritaria"
                                         />
                                     </td>
-                                    <td className="px-3 py-2 text-gray-600 whitespace-nowrap">
+                                    <td className="px-3 py-2 text-gray-600 dark:text-gray-200 whitespace-nowrap">
                                         {action.createdAt?.seconds
                                             ? new Date(action.createdAt.seconds * 1000).toLocaleDateString('es-ES')
                                             : '-'}
@@ -591,7 +603,7 @@ export default function ProjectDetail() {
                                             onInput={(e) => autoResize(e.target)}
                                             ref={(el) => { if (el) setTimeout(() => autoResize(el), 0); }}
                                             rows={1}
-                                            className="w-full bg-transparent border-0 focus:ring-1 focus:ring-blue-400 rounded px-1 py-0.5 text-gray-800 resize-none overflow-hidden"
+                                            className="w-full bg-transparent border-0 focus:ring-1 focus:ring-blue-400 rounded px-1 py-0.5 text-gray-800 dark:text-gray-100 resize-none overflow-hidden"
                                         />
                                     </td>
                                     {/* Responsable: portal dropdown */}
@@ -599,12 +611,12 @@ export default function ProjectDetail() {
                                         ref={(el) => { if (el) userCellRefs.current[action.id] = el; }}>
                                         <div
                                             onClick={() => setEditingUsersActionId(isEditingUsers ? null : action.id)}
-                                            className="cursor-pointer text-gray-700 hover:bg-blue-50 rounded px-1 py-0.5 min-h-[24px]"
+                                            className="cursor-pointer text-gray-700 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded px-1 py-0.5 min-h-[24px]"
                                             title="Clic para editar responsables"
                                         >
                                             {(action.assignedUsers || []).length > 0
                                                 ? action.assignedUsers.map(uid => getUserName(uid)).join(", ")
-                                                : <span className="text-gray-400 italic">Sin asignar</span>}
+                                                : <span className="text-gray-400 dark:text-gray-500 italic">Sin asignar</span>}
                                         </div>
                                         {isEditingUsers && userCellRefs.current[action.id] && (
                                             <UserCheckDropdown
@@ -620,8 +632,8 @@ export default function ProjectDetail() {
                                         <select
                                             value={action.status || "pendiente"}
                                             onChange={(e) => handleStatusChange(action.id, e.target.value)}
-                                            className="rounded-full text-xs font-semibold text-white px-2 py-1 border-0 cursor-pointer w-full"
-                                            style={{ backgroundColor: statusCfg.color }}
+                                            className="rounded-full text-sm font-semibold px-3 py-1.5 border-0 cursor-pointer w-full min-w-[120px] shadow-sm"
+                                            style={{ backgroundColor: statusCfg.color, color: getReadableTextColor(statusCfg.color) }}
                                         >
                                             {statuses.map(s => (
                                                 <option key={s.id} value={s.id} style={{ color: "#333", backgroundColor: "#fff" }}>{s.label}</option>
@@ -633,7 +645,7 @@ export default function ProjectDetail() {
                                             type="date"
                                             defaultValue={action.proposedStartDate || ""}
                                             onBlur={(e) => handleUpdateField(action.id, "proposedStartDate", e.target.value)}
-                                            className="bg-transparent border-0 focus:ring-1 focus:ring-blue-400 rounded text-xs text-gray-700 w-full p-0"
+                                            className="bg-transparent border-0 focus:ring-1 focus:ring-blue-400 rounded text-xs text-gray-700 dark:text-gray-200 w-full p-0"
                                         />
                                     </td>
                                     <td className="px-1 py-2">
@@ -643,7 +655,7 @@ export default function ProjectDetail() {
                                             onBlur={(e) => handleUpdateField(action.id, "proposedEndDate", e.target.value)}
                                             className={`bg-transparent border-0 focus:ring-1 focus:ring-blue-400 rounded text-xs w-full p-0 ${isOverdue(action.proposedEndDate) && statusCfg.type !== 'end'
                                                 ? 'text-red-600 font-semibold'
-                                                : 'text-gray-700'
+                                                : 'text-gray-700 dark:text-gray-200'
                                                 }`}
                                         />
                                     </td>
@@ -653,7 +665,7 @@ export default function ProjectDetail() {
                                             defaultValue={action.startDate || ""}
                                             key={action.startDate || "empty-start"}
                                             onBlur={(e) => handleUpdateField(action.id, "startDate", e.target.value)}
-                                            className="bg-transparent border-0 focus:ring-1 focus:ring-blue-400 rounded text-xs text-gray-700 w-full p-0"
+                                            className="bg-transparent border-0 focus:ring-1 focus:ring-blue-400 rounded text-xs text-gray-700 dark:text-gray-200 w-full p-0"
                                         />
                                     </td>
                                     <td className="px-1 py-2">
@@ -662,7 +674,7 @@ export default function ProjectDetail() {
                                             defaultValue={action.actualEndDate || ""}
                                             key={action.actualEndDate || "empty-end"}
                                             onBlur={(e) => handleUpdateField(action.id, "actualEndDate", e.target.value)}
-                                            className="bg-transparent border-0 focus:ring-1 focus:ring-blue-400 rounded text-xs text-gray-700 w-full p-0"
+                                            className="bg-transparent border-0 focus:ring-1 focus:ring-blue-400 rounded text-xs text-gray-700 dark:text-gray-200 w-full p-0"
                                         />
                                     </td>
                                     <td className="px-3 py-2">
@@ -675,7 +687,7 @@ export default function ProjectDetail() {
                                             onInput={(e) => autoResize(e.target)}
                                             ref={(el) => { if (el) setTimeout(() => autoResize(el), 0); }}
                                             rows={1}
-                                            className="w-full bg-transparent border-0 focus:ring-1 focus:ring-blue-400 rounded px-1 py-0.5 text-gray-700 resize-none overflow-hidden"
+                                            className="w-full bg-transparent border-0 focus:ring-1 focus:ring-blue-400 rounded px-1 py-0.5 text-gray-700 dark:text-gray-200 resize-none overflow-hidden"
                                         />
                                     </td>
                                     <td className="px-3 py-2">
@@ -689,8 +701,8 @@ export default function ProjectDetail() {
 
                         {/* Fila nueva acción */}
                         {showNewRow && (
-                            <tr className="bg-blue-50">
-                                <td className="px-3 py-2 text-gray-400">+</td>
+                            <tr className="bg-blue-50 dark:bg-blue-900/20">
+                                <td className="px-3 py-2 text-gray-400 dark:text-gray-500">+</td>
                                 <td className="px-3 py-2 text-center">
                                     <input
                                         type="checkbox"
@@ -700,7 +712,7 @@ export default function ProjectDetail() {
                                         title="Marcar como prioritaria"
                                     />
                                 </td>
-                                <td className="px-3 py-2 text-xs text-gray-400">Hoy</td>
+                                <td className="px-3 py-2 text-xs text-gray-400 dark:text-gray-500">Hoy</td>
                                 <td className="px-3 py-2">
                                     <textarea
                                         value={newAction.action}
@@ -708,7 +720,7 @@ export default function ProjectDetail() {
                                         onInput={(e) => autoResize(e.target)}
                                         placeholder="Descripción de la acción..."
                                         rows={1}
-                                        className="w-full border border-blue-300 rounded px-2 py-1 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none resize-none overflow-hidden"
+                                        className="w-full border border-blue-300 dark:border-blue-700 rounded px-2 py-1 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none resize-none overflow-hidden dark:bg-gray-900 dark:text-gray-100"
                                         autoFocus
                                     />
                                 </td>
@@ -722,29 +734,29 @@ export default function ProjectDetail() {
                                 </td>
                                 <td className="px-3 py-2">
                                     <select value={newAction.status} onChange={(e) => setNewAction({ ...newAction, status: e.target.value })}
-                                        className="border border-blue-300 rounded text-xs py-1 w-full">
+                                        className="border border-blue-300 dark:border-blue-700 rounded text-xs py-1 w-full dark:bg-gray-900 dark:text-gray-100">
                                         {statuses.map(s => (<option key={s.id} value={s.id}>{s.label}</option>))}
                                     </select>
                                 </td>
                                 <td className="px-1 py-2">
                                     <input type="date" value={newAction.proposedStartDate}
                                         onChange={(e) => setNewAction({ ...newAction, proposedStartDate: e.target.value })}
-                                        className="border border-blue-300 rounded text-xs px-1 py-0.5 w-full" />
+                                        className="border border-blue-300 dark:border-blue-700 rounded text-xs px-1 py-0.5 w-full dark:bg-gray-900 dark:text-gray-100" />
                                 </td>
                                 <td className="px-1 py-2">
                                     <input type="date" value={newAction.proposedEndDate}
                                         onChange={(e) => setNewAction({ ...newAction, proposedEndDate: e.target.value })}
-                                        className="border border-blue-300 rounded text-xs px-1 py-0.5 w-full" />
+                                        className="border border-blue-300 dark:border-blue-700 rounded text-xs px-1 py-0.5 w-full dark:bg-gray-900 dark:text-gray-100" />
                                 </td>
                                 <td className="px-1 py-2">
                                     <input type="date" value={newAction.startDate}
                                         onChange={(e) => setNewAction({ ...newAction, startDate: e.target.value })}
-                                        className="border border-blue-300 rounded text-xs px-1 py-0.5 w-full" />
+                                        className="border border-blue-300 dark:border-blue-700 rounded text-xs px-1 py-0.5 w-full dark:bg-gray-900 dark:text-gray-100" />
                                 </td>
                                 <td className="px-1 py-2">
                                     <input type="date" value={newAction.actualEndDate}
                                         onChange={(e) => setNewAction({ ...newAction, actualEndDate: e.target.value })}
-                                        className="border border-blue-300 rounded text-xs px-1 py-0.5 w-full" />
+                                        className="border border-blue-300 dark:border-blue-700 rounded text-xs px-1 py-0.5 w-full dark:bg-gray-900 dark:text-gray-100" />
                                 </td>
                                 <td className="px-3 py-2">
                                     <textarea value={newAction.observations}
@@ -752,12 +764,12 @@ export default function ProjectDetail() {
                                         onInput={(e) => autoResize(e.target)}
                                         placeholder="Observaciones..."
                                         rows={1}
-                                        className="w-full border border-blue-300 rounded px-1 py-0.5 text-sm resize-none overflow-hidden" />
+                                        className="w-full border border-blue-300 dark:border-blue-700 rounded px-1 py-0.5 text-sm resize-none overflow-hidden dark:bg-gray-900 dark:text-gray-100" />
                                 </td>
                                 <td className="px-3 py-2">
                                     <div className="flex gap-2">
                                         <button onClick={handleAddAction} className="px-3 py-1.5 bg-green-500 text-white rounded-lg hover:bg-green-600 text-sm font-medium transition">✓ Añadir</button>
-                                        <button onClick={() => setShowNewRow(false)} className="px-3 py-1.5 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 text-sm font-medium transition">✗ Cancelar</button>
+                                        <button onClick={() => setShowNewRow(false)} className="px-3 py-1.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 text-sm font-medium transition">✗ Cancelar</button>
                                     </div>
                                 </td>
                             </tr>
@@ -765,7 +777,7 @@ export default function ProjectDetail() {
 
                         {filteredActions.length === 0 && !showNewRow && (
                             <tr>
-                                <td colSpan="11" className="text-center py-8 text-gray-400">
+                                <td colSpan="11" className="text-center py-8 text-gray-400 dark:text-gray-500">
                                     {hasActiveFilters ? "No hay acciones que coincidan con los filtros." : "No hay acciones aún. Haz clic en \"Nueva Acción\" para empezar."}
                                 </td>
                             </tr>
@@ -782,7 +794,7 @@ export default function ProjectDetail() {
                 projectTitle={project.title}
             />
 
-            <div className="mt-4 text-xs text-gray-400 text-right">
+            <div className="mt-4 text-xs text-gray-400 dark:text-gray-500 text-right">
                 {filteredActions.length} de {actions.length} acción(es)
             </div>
         </div>

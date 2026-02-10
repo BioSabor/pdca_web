@@ -16,42 +16,63 @@ export function useAuth() {
 
 export function AuthProvider({ children }) {
     const [currentUser, setCurrentUser] = useState(null);
-    const [loading, setLoading] = useState(true);
+    const [initializing, setInitializing] = useState(true);
+    const [authenticating, setAuthenticating] = useState(false);
 
-    function signup(email, password) {
-        return createUserWithEmailAndPassword(auth, email, password);
+    async function buildUserProfile(user) {
+        if (!user) return null;
+        try {
+            const docRef = doc(db, "users", user.uid);
+            const docSnap = await getDoc(docRef);
+            if (docSnap.exists()) {
+                return { ...user, ...docSnap.data() };
+            }
+            return { ...user, role: "user" };
+        } catch (error) {
+            console.warn("Could not fetch user profile from Firestore:", error.message);
+            return { ...user, role: "user" };
+        }
     }
 
-    function login(email, password) {
-        return signInWithEmailAndPassword(auth, email, password);
+    async function signup(email, password) {
+        try {
+            setAuthenticating(true);
+            return await createUserWithEmailAndPassword(auth, email, password);
+        } finally {
+            setAuthenticating(false);
+        }
     }
 
-    function logout() {
-        return signOut(auth);
+    async function login(email, password) {
+        try {
+            setAuthenticating(true);
+            const credential = await signInWithEmailAndPassword(auth, email, password);
+            const hydrated = await buildUserProfile(credential.user);
+            setCurrentUser(hydrated);
+            return credential;
+        } finally {
+            setAuthenticating(false);
+        }
+    }
+
+    async function logout() {
+        try {
+            setAuthenticating(true);
+            return await signOut(auth);
+        } finally {
+            setAuthenticating(false);
+        }
     }
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
             if (user) {
-                try {
-                    // Fetch user role from Firestore
-                    const docRef = doc(db, "users", user.uid);
-                    const docSnap = await getDoc(docRef);
-                    if (docSnap.exists()) {
-                        setCurrentUser({ ...user, ...docSnap.data() });
-                    } else {
-                        // No Firestore doc yet — use Auth user as fallback
-                        setCurrentUser({ ...user, role: "user" });
-                    }
-                } catch (error) {
-                    console.warn("Could not fetch user profile from Firestore:", error.message);
-                    // Fallback: use Auth user without Firestore data
-                    setCurrentUser({ ...user, role: "user" });
-                }
+                const hydrated = await buildUserProfile(user);
+                setCurrentUser(hydrated);
             } else {
                 setCurrentUser(null);
             }
-            setLoading(false);
+            setInitializing(false);
         });
 
         return unsubscribe;
@@ -61,12 +82,13 @@ export function AuthProvider({ children }) {
         currentUser,
         signup,
         login,
-        logout
+        logout,
+        authLoading: initializing || authenticating
     };
 
     return (
         <AuthContext.Provider value={value}>
-            {!loading && children}
+            {!initializing && children}
         </AuthContext.Provider>
     );
 }
