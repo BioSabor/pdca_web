@@ -50,16 +50,15 @@ export default function Reports() {
                 let actions = [];
 
                 if (endStatusIds.length > 0) {
-                    const actionsQuery = query(
-                        collectionGroup(db, "actions"),
-                        where("status", "in", endStatusIds)
-                    );
+                    const actionsQuery = query(collectionGroup(db, "actions"));
                     const snapshot = await getDocs(actionsQuery);
-                    actions = snapshot.docs.map((actionDoc) => ({
-                        id: actionDoc.id,
-                        ...actionDoc.data(),
-                        projectId: actionDoc.ref.parent.parent?.id || null
-                    }));
+                    actions = snapshot.docs
+                        .map((actionDoc) => ({
+                            id: actionDoc.id,
+                            ...actionDoc.data(),
+                            projectId: actionDoc.ref.parent.parent?.id || null
+                        }))
+                        .filter((action) => endStatusIds.includes(action.status));
                 }
 
                 const filteredActions = actions.filter((action) => {
