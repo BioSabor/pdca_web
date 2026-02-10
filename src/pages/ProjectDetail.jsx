@@ -173,6 +173,7 @@ export default function ProjectDetail() {
 
     const [editingUsersActionId, setEditingUsersActionId] = useState(null);
     const userCellRefs = useRef({});
+    const [expandedCardId, setExpandedCardId] = useState(null);
 
     const [editingProject, setEditingProject] = useState(false);
     const [editTitle, setEditTitle] = useState("");
@@ -543,8 +544,225 @@ export default function ProjectDetail() {
                 </div>
             )}
 
-            {/* Tabla de acciones */}
-            <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-x-auto">
+            {/* Vista móvil: tarjetas compactas */}
+            <div className="md:hidden space-y-2">
+                {/* Formulario nueva acción móvil */}
+                {showNewRow && (
+                    <div className="bg-blue-50 dark:bg-blue-950/60 rounded-xl border border-blue-200 dark:border-blue-800 p-4 space-y-3">
+                        <textarea
+                            value={newAction.action}
+                            onChange={(e) => setNewAction({ ...newAction, action: e.target.value })}
+                            placeholder="Descripción de la acción..."
+                            rows={2}
+                            className="w-full border border-blue-300 dark:border-blue-700 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none resize-none dark:bg-gray-900 dark:text-gray-100"
+                            autoFocus
+                        />
+                        <div className="grid grid-cols-2 gap-2">
+                            <div>
+                                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Estado</label>
+                                <select value={newAction.status} onChange={(e) => setNewAction({ ...newAction, status: e.target.value })}
+                                    className="border border-blue-300 dark:border-blue-700 rounded-lg text-xs py-1.5 px-2 w-full dark:bg-gray-900 dark:text-gray-100">
+                                    {statuses.map(s => (<option key={s.id} value={s.id}>{s.label}</option>))}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Responsable</label>
+                                <MultiCheckDropdown
+                                    options={userOptions}
+                                    selected={newAction.assignedUsers}
+                                    onChange={(selected) => setNewAction({ ...newAction, assignedUsers: selected })}
+                                    placeholder="Seleccionar..."
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">F. Fin Propuesta</label>
+                                <input type="date" value={newAction.proposedEndDate}
+                                    onChange={(e) => setNewAction({ ...newAction, proposedEndDate: e.target.value })}
+                                    className="border border-blue-300 dark:border-blue-700 rounded-lg text-xs px-2 py-1.5 w-full dark:bg-gray-900 dark:text-gray-100" />
+                            </div>
+                            <div className="flex items-end">
+                                <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={newAction.priority}
+                                        onChange={(e) => setNewAction({ ...newAction, priority: e.target.checked })}
+                                        className="w-4 h-4 text-red-500 rounded accent-red-500"
+                                    />
+                                    ⚡ Prioritaria
+                                </label>
+                            </div>
+                        </div>
+                        <div className="flex gap-2">
+                            <button onClick={handleAddAction} className="flex-1 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 text-sm font-medium transition">Añadir</button>
+                            <button onClick={() => setShowNewRow(false)} className="flex-1 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 text-sm font-medium transition">Cancelar</button>
+                        </div>
+                    </div>
+                )}
+
+                {filteredActions.map((action) => {
+                    const statusCfg = getStatusConfig(action.status);
+                    const isExpanded = expandedCardId === action.id;
+                    // Prioridad: fecha fin real > fecha fin propuesta
+                    const cardDateRaw = action.actualEndDate || action.proposedEndDate || null;
+                    const dateDisplay = cardDateRaw
+                        ? new Date(cardDateRaw + "T00:00:00").toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })
+                        : null;
+                    // En rojo si es fecha propuesta (sin real), vencida y no finalizada
+                    const cardDateOverdue = !action.actualEndDate && isOverdue(action.proposedEndDate) && statusCfg.type !== 'end';
+
+                    return (
+                        <div key={action.id} className={`rounded-xl border transition-all ${action.priority ? 'border-red-300 dark:border-red-800 bg-white dark:bg-gray-800' : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800'}`}>
+                            {/* Cabecera compacta de la tarjeta */}
+                            <div
+                                className="flex items-start gap-3 px-4 py-3 cursor-pointer"
+                                onClick={() => setExpandedCardId(isExpanded ? null : action.id)}
+                            >
+                                {/* Indicador de estado (punto de color) */}
+                                <div className="flex-shrink-0 mt-1">
+                                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: statusCfg.color }}></div>
+                                </div>
+                                {/* Contenido principal */}
+                                <div className="flex-1 min-w-0">
+                                    <p className={`text-sm text-gray-800 dark:text-gray-100 leading-snug ${action.priority ? 'font-semibold' : ''}`}>
+                                        {action.priority && <span className="text-red-500 mr-1">⚡</span>}
+                                        {action.action || "Sin descripción"}
+                                    </p>
+                                    <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                        {dateDisplay && (
+                                            <span className={`text-xs ${cardDateOverdue ? 'text-red-500 font-semibold' : 'text-amber-600 dark:text-amber-400'}`}>
+                                                {dateDisplay}
+                                            </span>
+                                        )}
+                                        {(action.assignedUsers || []).length > 0 && (
+                                            <span className="text-xs text-gray-400 dark:text-gray-500">
+                                                · {action.assignedUsers.map(uid => getUserName(uid)).join(", ")}
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                                {/* Badge estado */}
+                                <span
+                                    className="flex-shrink-0 text-xs font-semibold px-2 py-0.5 rounded-full"
+                                    style={{ backgroundColor: statusCfg.color, color: getReadableTextColor(statusCfg.color) }}
+                                >
+                                    {statusCfg.label}
+                                </span>
+                            </div>
+
+                            {/* Contenido expandido */}
+                            {isExpanded && (
+                                <div className="px-4 pb-4 pt-1 border-t border-gray-100 dark:border-gray-700 space-y-3">
+                                    {/* Cambiar estado */}
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Estado</label>
+                                        <select
+                                            value={action.status || "pendiente"}
+                                            onChange={(e) => handleStatusChange(action.id, e.target.value)}
+                                            className="rounded-full text-sm font-semibold px-3 py-1.5 border-0 cursor-pointer w-full shadow-sm"
+                                            style={{ backgroundColor: statusCfg.color, color: getReadableTextColor(statusCfg.color) }}
+                                        >
+                                            {statuses.map(s => (
+                                                <option key={s.id} value={s.id} style={{ color: "#333", backgroundColor: "#fff" }}>{s.label}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    {/* Responsables */}
+                                    <div className="relative" ref={(el) => { if (el) userCellRefs.current[`mobile-${action.id}`] = el; }}>
+                                        <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Responsables</label>
+                                        <div
+                                            onClick={() => setEditingUsersActionId(editingUsersActionId === `mobile-${action.id}` ? null : `mobile-${action.id}`)}
+                                            className="cursor-pointer text-sm text-gray-700 dark:text-gray-200 bg-gray-50 dark:bg-gray-900 rounded-lg px-3 py-2 border border-gray-200 dark:border-gray-700"
+                                        >
+                                            {(action.assignedUsers || []).length > 0
+                                                ? action.assignedUsers.map(uid => getUserName(uid)).join(", ")
+                                                : <span className="text-gray-400 dark:text-gray-500 italic">Sin asignar</span>}
+                                        </div>
+                                        {editingUsersActionId === `mobile-${action.id}` && (
+                                            <UserCheckDropdown
+                                                users={projectUsers}
+                                                selected={action.assignedUsers || []}
+                                                onToggle={(uid) => toggleExistingActionUser(action.id, uid)}
+                                                onClose={() => setEditingUsersActionId(null)}
+                                                anchorEl={userCellRefs.current[`mobile-${action.id}`]}
+                                            />
+                                        )}
+                                    </div>
+
+                                    {/* Fechas en grid compacto */}
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <div>
+                                            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-0.5">F. Inicio Propuesta</label>
+                                            <input type="date" defaultValue={action.proposedStartDate || ""}
+                                                onBlur={(e) => handleUpdateField(action.id, "proposedStartDate", e.target.value)}
+                                                className="w-full text-xs border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1.5 bg-gray-50 dark:bg-gray-900 text-gray-700 dark:text-gray-200" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-0.5">F. Fin Propuesta</label>
+                                            <input type="date" defaultValue={action.proposedEndDate || ""}
+                                                onBlur={(e) => handleUpdateField(action.id, "proposedEndDate", e.target.value)}
+                                                className={`w-full text-xs border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1.5 bg-gray-50 dark:bg-gray-900 ${isOverdue(action.proposedEndDate) && statusCfg.type !== 'end' ? 'text-red-600 font-semibold' : 'text-gray-700 dark:text-gray-200'}`} />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-0.5">F. Inicio Real</label>
+                                            <input type="date" defaultValue={action.startDate || ""} key={action.startDate || "m-empty-s"}
+                                                onBlur={(e) => handleUpdateField(action.id, "startDate", e.target.value)}
+                                                className="w-full text-xs border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1.5 bg-gray-50 dark:bg-gray-900 text-gray-700 dark:text-gray-200" />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-0.5">F. Fin Real</label>
+                                            <input type="date" defaultValue={action.actualEndDate || ""} key={action.actualEndDate || "m-empty-e"}
+                                                onBlur={(e) => handleUpdateField(action.id, "actualEndDate", e.target.value)}
+                                                className="w-full text-xs border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1.5 bg-gray-50 dark:bg-gray-900 text-gray-700 dark:text-gray-200" />
+                                        </div>
+                                    </div>
+
+                                    {/* Observaciones */}
+                                    <div>
+                                        <label className="block text-xs text-gray-500 dark:text-gray-400 mb-0.5">Observaciones</label>
+                                        <textarea
+                                            defaultValue={action.observations || ""}
+                                            onBlur={(e) => {
+                                                if (e.target.value !== (action.observations || ""))
+                                                    handleUpdateField(action.id, "observations", e.target.value);
+                                            }}
+                                            rows={2}
+                                            placeholder="Sin observaciones"
+                                            className="w-full text-sm border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 bg-gray-50 dark:bg-gray-900 text-gray-700 dark:text-gray-200 resize-none"
+                                        />
+                                    </div>
+
+                                    {/* Prioridad + Eliminar */}
+                                    <div className="flex items-center justify-between pt-1">
+                                        <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300 cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                checked={!!action.priority}
+                                                onChange={(e) => handleUpdateField(action.id, "priority", e.target.checked)}
+                                                className="w-4 h-4 text-red-500 rounded accent-red-500"
+                                            />
+                                            ⚡ Prioritaria
+                                        </label>
+                                        <button onClick={() => handleDeleteAction(action.id)} className="flex items-center gap-1 text-xs text-red-400 hover:text-red-600 transition">
+                                            <Trash2 className="w-3.5 h-3.5" />
+                                            Eliminar
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    );
+                })}
+
+                {filteredActions.length === 0 && !showNewRow && (
+                    <div className="text-center py-8 text-gray-400 dark:text-gray-500 text-sm">
+                        {hasActiveFilters ? "No hay acciones que coincidan con los filtros." : "No hay acciones aún. Pulsa \"Nueva Acción\" para empezar."}
+                    </div>
+                )}
+            </div>
+
+            {/* Vista desktop: tabla de acciones */}
+            <div className="hidden md:block bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-x-auto">
                 <table className={`w-full ${hasObservations ? "min-w-[1200px]" : "min-w-[980px]"} divide-y divide-gray-200 dark:divide-gray-700 text-sm`}>
                     <thead className="bg-gray-50 dark:bg-gray-800">
                         <tr>
