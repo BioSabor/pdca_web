@@ -95,7 +95,7 @@ export default function Dashboard() {
         <div>
             {/* Resumen global */}
             {globalStats && (
-                <div className="grid grid-cols-3 gap-2 md:gap-4 mb-8">
+                <div className="grid grid-cols-3 gap-2 md:gap-4 mb-8 md:max-w-4xl md:mx-auto">
                     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-3 md:p-5">
                         <div className="flex flex-col items-center text-center md:flex-row md:text-left gap-1 md:gap-3">
                             <div className="bg-blue-100 dark:bg-blue-900/40 p-1.5 md:p-2.5 rounded-lg">
@@ -138,7 +138,7 @@ export default function Dashboard() {
                 const totalPendAll = sortedStats.reduce((sum, [, s]) => sum + s.pending, 0);
                 const totalPriorAll = sortedStats.reduce((sum, [, s]) => sum + s.priority, 0);
                 return (
-                    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 mb-8">
+                    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 mb-8 md:max-w-4xl md:mx-auto">
                         {/* Mobile: collapsible */}
                         <div className="md:hidden">
                             <div
