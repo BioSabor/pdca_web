@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(tree:*)",
+      "Bash(node -e:*)",
+      "Bash(npm install:*)"
+    ]
+  }
+}
