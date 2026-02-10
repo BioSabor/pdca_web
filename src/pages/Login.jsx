@@ -58,9 +58,6 @@ export default function Login() {
                         Entrar
                     </button>
                 </form>
-                <div className="mt-4 text-center">
-                    ¿No tienes cuenta? <Link to="/register" className="text-blue-600 hover:underline">Regístrate</Link>
-                </div>
             </div>
         </div>
     );
