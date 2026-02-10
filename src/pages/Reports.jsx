@@ -171,7 +171,68 @@ export default function Reports() {
                 </div>
             </div>
 
-            <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-x-auto">
+            {/* Mobile: card-based layout */}
+            <div className="md:hidden space-y-2">
+                {loading && (
+                    <div className="p-6 text-gray-500 dark:text-gray-400 text-sm">Cargando informes...</div>
+                )}
+                {error && !loading && (
+                    <div className="p-4 text-red-500 text-sm">{error}</div>
+                )}
+                {!loading && !error && rows.map((row) => (
+                    <div key={row.userId} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700">
+                        <div
+                            className="flex items-center justify-between px-4 py-3 cursor-pointer"
+                            onClick={() => toggleRow(row.userId)}
+                        >
+                            <span className="text-sm font-medium text-gray-800 dark:text-gray-100 truncate">
+                                {row.user?.displayName || row.user?.email || row.userId}
+                            </span>
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-200">
+                                    {row.count}
+                                </span>
+                                <span className="text-[10px] text-blue-600 dark:text-blue-300">
+                                    {expandedUserId === row.userId ? "▲" : "▼"}
+                                </span>
+                            </div>
+                        </div>
+                        {expandedUserId === row.userId && (
+                            <div className="px-4 pb-3 border-t border-gray-100 dark:border-gray-700 pt-2">
+                                {row.count === 0 && (
+                                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                                        Sin acciones finalizadas en este periodo.
+                                    </div>
+                                )}
+                                {row.count > 0 && (
+                                    <div className="space-y-2">
+                                        {Object.entries(row.projects).map(([projectId, actions]) => (
+                                            <div key={projectId}>
+                                                <div className="text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1">
+                                                    {row.projectTitles[projectId] || "Proyecto"} ({actions.length})
+                                                </div>
+                                                <ul className="space-y-0.5">
+                                                    {actions.map((action) => (
+                                                        <li key={action.id} className="text-xs text-gray-600 dark:text-gray-300 flex justify-between gap-2">
+                                                            <span className="truncate">{action.action || "Sin descripcion"}</span>
+                                                            {action.actualEndDate && (
+                                                                <span className="text-[10px] text-gray-400 dark:text-gray-500 flex-shrink-0">{action.actualEndDate}</span>
+                                                            )}
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                ))}
+            </div>
+
+            {/* Desktop: table layout */}
+            <div className="hidden md:block bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-x-auto">
                 {loading && (
                     <div className="p-6 text-gray-500 dark:text-gray-400">Cargando informes...</div>
                 )}

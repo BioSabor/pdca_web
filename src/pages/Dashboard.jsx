@@ -14,6 +14,7 @@ export default function Dashboard() {
     const [departments, setDepartments] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showArchived, setShowArchived] = useState(false);
+    const [showUserStats, setShowUserStats] = useState(false);
 
     const isAdmin = currentUser?.role === "admin";
 
@@ -132,39 +133,89 @@ export default function Dashboard() {
             )}
 
             {/* Admin: detalle por usuario */}
-            {isAdmin && globalStats?.adminUserStats && Object.keys(globalStats.adminUserStats).length > 0 && (
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-5 mb-8">
-                    <h2 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-3 text-center">Acciones Pendientes por Usuario</h2>
-                    <div className="overflow-x-auto w-full">
-                        <table className="min-w-[520px] text-sm mx-auto">
-                            <thead>
-                                <tr className="border-b border-gray-200 dark:border-gray-700">
-                                    <th className="text-left py-2 px-3 text-gray-500 dark:text-gray-400 font-medium">Usuario</th>
-                                    <th className="text-center py-2 px-3 text-gray-500 dark:text-gray-400 font-medium">Pendientes</th>
-                                    <th className="text-center py-2 px-3 text-gray-500 dark:text-gray-400 font-medium">Prioritarias</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {Object.entries(globalStats.adminUserStats)
-                                    .sort((a, b) => b[1].pending - a[1].pending)
-                                    .map(([uid, stat]) => (
-                                        <tr key={uid} className="border-b border-gray-50 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/40">
-                                            <td className="py-2 px-3 text-gray-800 dark:text-gray-100">{getUserName(uid)}</td>
-                                            <td className="py-2 px-3 text-center">
-                                                <span className="bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-200 px-2 py-0.5 rounded-full text-xs font-semibold">{stat.pending}</span>
-                                            </td>
-                                            <td className="py-2 px-3 text-center">
-                                                {stat.priority > 0
-                                                    ? <span className="bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-200 px-2 py-0.5 rounded-full text-xs font-semibold">{stat.priority}</span>
-                                                    : <span className="text-gray-400 dark:text-gray-500 text-xs">0</span>}
-                                            </td>
+            {isAdmin && globalStats?.adminUserStats && Object.keys(globalStats.adminUserStats).length > 0 && (() => {
+                const sortedStats = Object.entries(globalStats.adminUserStats).sort((a, b) => b[1].pending - a[1].pending);
+                const totalPendAll = sortedStats.reduce((sum, [, s]) => sum + s.pending, 0);
+                const totalPriorAll = sortedStats.reduce((sum, [, s]) => sum + s.priority, 0);
+                return (
+                    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 mb-8">
+                        {/* Mobile: collapsible */}
+                        <div className="md:hidden">
+                            <div
+                                className="flex items-center justify-between px-3 py-2.5 cursor-pointer"
+                                onClick={() => setShowUserStats(!showUserStats)}
+                            >
+                                <span className="text-xs font-bold text-gray-800 dark:text-gray-100">Pendientes por Usuario</span>
+                                <div className="flex items-center gap-2">
+                                    <span className="bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-200 px-1.5 py-0.5 rounded-full text-[10px] font-semibold">{totalPendAll}</span>
+                                    {totalPriorAll > 0 && <span className="bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-200 px-1.5 py-0.5 rounded-full text-[10px] font-semibold">{totalPriorAll} ⚡</span>}
+                                    <span className="text-[10px] text-gray-400 dark:text-gray-500">{showUserStats ? "▲" : "▼"}</span>
+                                </div>
+                            </div>
+                            {showUserStats && (
+                                <div className="border-t border-gray-100 dark:border-gray-700 px-2 pb-2">
+                                    <div className="max-h-[132px] overflow-y-auto">
+                                        <table className="w-full text-xs">
+                                            <thead className="sticky top-0 bg-white dark:bg-gray-800 z-10">
+                                                <tr className="border-b border-gray-200 dark:border-gray-700">
+                                                    <th className="text-left py-1 px-2 text-gray-500 dark:text-gray-400 font-medium">Usuario</th>
+                                                    <th className="text-center py-1 px-1 text-gray-500 dark:text-gray-400 font-medium w-12">Pend.</th>
+                                                    <th className="text-center py-1 px-1 text-gray-500 dark:text-gray-400 font-medium w-12">Prior.</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {sortedStats.map(([uid, stat]) => (
+                                                    <tr key={uid} className="border-b border-gray-50 dark:border-gray-700">
+                                                        <td className="py-1 px-2 text-gray-800 dark:text-gray-100 truncate max-w-[140px]">{getUserName(uid)}</td>
+                                                        <td className="py-1 px-1 text-center">
+                                                            <span className="bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-200 px-1.5 py-0.5 rounded-full text-[10px] font-semibold">{stat.pending}</span>
+                                                        </td>
+                                                        <td className="py-1 px-1 text-center">
+                                                            {stat.priority > 0
+                                                                ? <span className="bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-200 px-1.5 py-0.5 rounded-full text-[10px] font-semibold">{stat.priority}</span>
+                                                                : <span className="text-gray-400 dark:text-gray-500 text-[10px]">0</span>}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                        {/* Desktop: always visible */}
+                        <div className="hidden md:block p-5">
+                            <h2 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-3 text-center">Pendientes por Usuario</h2>
+                            <div className="max-h-[400px] overflow-y-auto">
+                                <table className="w-full text-sm">
+                                    <thead className="sticky top-0 bg-white dark:bg-gray-800 z-10">
+                                        <tr className="border-b border-gray-200 dark:border-gray-700">
+                                            <th className="text-left py-2 px-3 text-gray-500 dark:text-gray-400 font-medium text-xs">Usuario</th>
+                                            <th className="text-center py-2 px-3 text-gray-500 dark:text-gray-400 font-medium text-xs">Pendientes</th>
+                                            <th className="text-center py-2 px-3 text-gray-500 dark:text-gray-400 font-medium text-xs">Prioritarias</th>
                                         </tr>
-                                    ))}
-                            </tbody>
-                        </table>
+                                    </thead>
+                                    <tbody>
+                                        {sortedStats.map(([uid, stat]) => (
+                                            <tr key={uid} className="border-b border-gray-50 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/40">
+                                                <td className="py-2 px-3 text-gray-800 dark:text-gray-100">{getUserName(uid)}</td>
+                                                <td className="py-2 px-3 text-center">
+                                                    <span className="bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-200 px-2 py-0.5 rounded-full text-xs font-semibold">{stat.pending}</span>
+                                                </td>
+                                                <td className="py-2 px-3 text-center">
+                                                    {stat.priority > 0
+                                                        ? <span className="bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-200 px-2 py-0.5 rounded-full text-xs font-semibold">{stat.priority}</span>
+                                                        : <span className="text-gray-400 dark:text-gray-500 text-xs">0</span>}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
-                </div>
-            )}
+                );
+            })()}
 
             {/* Proyectos */}
             <div className="flex justify-between items-center mb-6 gap-2">

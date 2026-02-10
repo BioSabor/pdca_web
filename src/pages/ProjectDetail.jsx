@@ -726,9 +726,22 @@ export default function ProjectDetail() {
                                                 if (e.target.value !== (action.observations || ""))
                                                     handleUpdateField(action.id, "observations", e.target.value);
                                             }}
-                                            rows={2}
+                                            onInput={(e) => {
+                                                e.target.style.height = 'auto';
+                                                e.target.style.height = Math.min(e.target.scrollHeight, 160) + 'px';
+                                            }}
+                                            ref={(el) => {
+                                                if (el) {
+                                                    setTimeout(() => {
+                                                        el.style.height = 'auto';
+                                                        el.style.height = Math.min(el.scrollHeight, 160) + 'px';
+                                                    }, 0);
+                                                }
+                                            }}
+                                            rows={1}
                                             placeholder="Sin observaciones"
-                                            className="w-full text-sm border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 bg-gray-50 dark:bg-gray-900 text-gray-700 dark:text-gray-200 resize-none"
+                                            className="w-full text-sm border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 bg-gray-50 dark:bg-gray-900 text-gray-700 dark:text-gray-200 resize-none overflow-y-auto"
+                                            style={{ maxHeight: '160px' }}
                                         />
                                     </div>
 
