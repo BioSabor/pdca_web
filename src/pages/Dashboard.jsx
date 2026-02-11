@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { projectService, actionService, statusService, userService, departmentService } from "../services/projectService";
 import { Link, useNavigate } from "react-router-dom";
-import { Plus, ChevronRight, ChevronDown, Calendar, Users, AlertTriangle, Clock, CheckCircle, Archive, RotateCcw, Building2 } from "lucide-react";
+import { Plus, Calendar, Users, AlertTriangle, Clock, CheckCircle, Archive, RotateCcw, Building2 } from "lucide-react";
 
 export default function Dashboard() {
     const { currentUser } = useAuth();
@@ -14,9 +14,7 @@ export default function Dashboard() {
     const [departments, setDepartments] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showArchived, setShowArchived] = useState(false);
-    const [showUserStats, setShowUserStats] = useState(false);
 
-    const isAdmin = currentUser?.role === "admin";
 
     useEffect(() => {
         async function loadData() {
@@ -36,9 +34,10 @@ export default function Dashboard() {
                 const endStatuses = statuses.filter(s => s.type === "end").map(s => s.id);
 
                 const stats = {};
+
                 let totalPending = 0;
                 let totalPriority = 0;
-                const adminUserStats = {};
+
 
                 for (const project of data) {
                     const actions = await actionService.getActions(project.id);
@@ -60,21 +59,11 @@ export default function Dashboard() {
                     totalPending += myPending.length;
                     totalPriority += myPriority.length;
 
-                    // Admin: estadísticas por usuario
-                    if (isAdmin) {
-                        for (const action of actions) {
-                            if (endStatuses.includes(action.status)) continue;
-                            for (const uid of (action.assignedUsers || [])) {
-                                if (!adminUserStats[uid]) adminUserStats[uid] = { pending: 0, priority: 0 };
-                                adminUserStats[uid].pending++;
-                                if (action.priority) adminUserStats[uid].priority++;
-                            }
-                        }
-                    }
+
                 }
 
                 setProjectStats(stats);
-                setGlobalStats({ totalPending, totalPriority, adminUserStats });
+                setGlobalStats({ totalPending, totalPriority });
             } catch (error) {
                 console.error("Error al cargar datos", error);
             } finally {
@@ -132,64 +121,6 @@ export default function Dashboard() {
                 </div>
             )}
 
-            {/* Admin: detalle por usuario */}
-            {isAdmin && globalStats?.adminUserStats && Object.keys(globalStats.adminUserStats).length > 0 && (() => {
-                const sortedStats = Object.entries(globalStats.adminUserStats).sort((a, b) => b[1].pending - a[1].pending);
-                const totalPendAll = sortedStats.reduce((sum, [, s]) => sum + s.pending, 0);
-                const totalPriorAll = sortedStats.reduce((sum, [, s]) => sum + s.priority, 0);
-                return (
-                    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 mb-8 md:max-w-lg md:mx-auto">
-                        {/* Collapsible header (both mobile & desktop) */}
-                        <div
-                            className="flex items-center justify-between px-3 md:px-4 py-2.5 md:py-3 cursor-pointer select-none hover:bg-gray-50 dark:hover:bg-gray-700/30 rounded-xl transition"
-                            onClick={() => setShowUserStats(!showUserStats)}
-                        >
-                            <div className="flex items-center gap-2">
-                                <div className="bg-blue-100 dark:bg-blue-900/40 p-1.5 rounded-lg">
-                                    <Users className="w-3.5 h-3.5 md:w-4 md:h-4 text-blue-600" />
-                                </div>
-                                <span className="text-xs md:text-sm font-bold text-gray-800 dark:text-gray-100">Pendientes por Usuario</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <span className="bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-200 px-2 py-0.5 rounded-full text-[10px] md:text-xs font-semibold">{totalPendAll}</span>
-                                {totalPriorAll > 0 && <span className="bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-200 px-2 py-0.5 rounded-full text-[10px] md:text-xs font-semibold">{totalPriorAll} ⚡</span>}
-                                <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${showUserStats ? "rotate-180" : ""}`} />
-                            </div>
-                        </div>
-                        {/* Expanded table */}
-                        {showUserStats && (
-                            <div className="border-t border-gray-100 dark:border-gray-700 px-2 md:px-3 pb-2 md:pb-3">
-                                <div className="max-h-[132px] md:max-h-[176px] overflow-y-auto">
-                                    <table className="w-full text-xs md:text-sm">
-                                        <thead className="sticky top-0 bg-white dark:bg-gray-800 z-10">
-                                            <tr className="border-b border-gray-200 dark:border-gray-700">
-                                                <th className="text-left py-1.5 md:py-2 px-2 md:px-3 text-gray-500 dark:text-gray-400 font-medium text-[11px] md:text-xs">Usuario</th>
-                                                <th className="text-center py-1.5 md:py-2 px-1 md:px-3 text-gray-500 dark:text-gray-400 font-medium text-[11px] md:text-xs w-16 md:w-20">Pend.</th>
-                                                <th className="text-center py-1.5 md:py-2 px-1 md:px-3 text-gray-500 dark:text-gray-400 font-medium text-[11px] md:text-xs w-16 md:w-20">Prior.</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {sortedStats.map(([uid, stat]) => (
-                                                <tr key={uid} className="border-b border-gray-50 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/40">
-                                                    <td className="py-1.5 md:py-2 px-2 md:px-3 text-gray-800 dark:text-gray-100 truncate max-w-[140px] md:max-w-[200px]">{getUserName(uid)}</td>
-                                                    <td className="py-1.5 md:py-2 px-1 md:px-3 text-center">
-                                                        <span className="bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-200 px-1.5 md:px-2 py-0.5 rounded-full text-[10px] md:text-xs font-semibold">{stat.pending}</span>
-                                                    </td>
-                                                    <td className="py-1.5 md:py-2 px-1 md:px-3 text-center">
-                                                        {stat.priority > 0
-                                                            ? <span className="bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-200 px-1.5 md:px-2 py-0.5 rounded-full text-[10px] md:text-xs font-semibold">{stat.priority}</span>
-                                                            : <span className="text-gray-400 dark:text-gray-500 text-[10px] md:text-xs">0</span>}
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                );
-            })()}
 
             {/* Proyectos */}
             <div className="flex justify-between items-center mb-6 gap-2">

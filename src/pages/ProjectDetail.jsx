@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { projectService, actionService, statusService, userService, departmentService } from "../services/projectService";
-import { ArrowLeft, Plus, Trash2, Filter, X, ChevronDown, Pencil, Trash, Building2 } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Filter, X, ChevronDown, Pencil, Trash, Building2, Eye, EyeOff } from "lucide-react";
 import { createPortal } from "react-dom";
 import { useAuth } from "../context/AuthContext";
 import GanttModal from "../components/GanttModal";
@@ -182,6 +182,7 @@ export default function ProjectDetail() {
     const [editAssignedDepartments, setEditAssignedDepartments] = useState([]);
 
     const [showGantt, setShowGantt] = useState(false);
+    const [expandedObsActionId, setExpandedObsActionId] = useState(null);
 
     useEffect(() => { loadAll(); }, [id]);
 
@@ -385,7 +386,7 @@ export default function ProjectDetail() {
         return cfg.type === 'end';
     }).length;
     const progressPercentage = totalActions > 0 ? Math.round((completedOrDiscarded / totalActions) * 100) : 0;
-    const hasObservations = actions.some(a => (a.observations || "").trim().length > 0);
+
 
 
     return (
@@ -776,20 +777,20 @@ export default function ProjectDetail() {
 
             {/* Vista desktop: tabla de acciones */}
             <div className="hidden md:block bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-x-auto">
-                <table className={`w-full ${hasObservations ? "min-w-[1200px]" : "min-w-[980px]"} divide-y divide-gray-200 dark:divide-gray-700 text-sm`}>
+                <table className="w-full min-w-[980px] divide-y divide-gray-200 dark:divide-gray-700 text-sm">
                     <thead className="bg-gray-50 dark:bg-gray-800">
                         <tr>
                             <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase w-8">#</th>
                             <th className="px-1 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase w-8" title="Prioridad">⚡</th>
                             <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase w-16">Fecha</th>
-                            <th className={`px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase ${hasObservations ? "min-w-[420px]" : "min-w-[560px]"} w-full`}>Acción</th>
+                            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase min-w-[560px] w-full">Acción</th>
                             <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase min-w-[140px]">Responsable</th>
                             <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase w-32">Estado</th>
                             <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase w-16 leading-3">F. Inicio<br />Propuesta</th>
                             <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase w-16 leading-3">F. Fin<br />Propuesta</th>
                             <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase w-16 leading-3">F. Inicio<br />Real</th>
                             <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase w-16 leading-3">F. Fin<br />Real</th>
-                            <th className={`px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase ${hasObservations ? "min-w-[320px]" : "min-w-[140px]"} ${hasObservations ? "w-[30%]" : "w-[12%]"}`}>Observaciones</th>
+                            <th className="px-1 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase w-10" title="Observaciones"><Eye className="w-3.5 h-3.5 mx-auto" /></th>
                             <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase w-10"></th>
                         </tr>
                     </thead>
@@ -798,127 +799,148 @@ export default function ProjectDetail() {
                             const statusCfg = getStatusConfig(action.status);
                             const isEditingUsers = editingUsersActionId === action.id;
                             return (
-                                <tr key={action.id} className={`hover:bg-gray-50 dark:hover:bg-gray-800 transition ${action.priority ? 'bg-red-50/50 dark:bg-red-900/20' : ''}`}>
-                                    <td className="px-3 py-2 text-gray-400 dark:text-gray-500">{action.seqId || "-"}</td>
-                                    <td className="px-3 py-2 text-center">
-                                        <input
-                                            type="checkbox"
-                                            checked={!!action.priority}
-                                            onChange={(e) => handleUpdateField(action.id, "priority", e.target.checked)}
-                                            className="w-4 h-4 text-red-500 rounded cursor-pointer accent-red-500"
-                                            title="Marcar como prioritaria"
-                                        />
-                                    </td>
-                                    <td className="px-3 py-2 text-gray-600 dark:text-gray-200 whitespace-nowrap">
-                                        {action.createdAt?.seconds
-                                            ? new Date(action.createdAt.seconds * 1000).toLocaleDateString('es-ES')
-                                            : '-'}
-                                    </td>
-                                    <td className="px-3 py-2">
-                                        <textarea
-                                            defaultValue={action.action}
-                                            onBlur={(e) => {
-                                                if (e.target.value !== action.action)
-                                                    handleUpdateField(action.id, "action", e.target.value);
-                                            }}
-                                            onInput={(e) => autoResize(e.target)}
-                                            ref={(el) => { if (el) setTimeout(() => autoResize(el), 0); }}
-                                            rows={1}
-                                            className="w-full bg-transparent border-0 focus:ring-1 focus:ring-blue-400 rounded px-1 py-0.5 text-gray-800 dark:text-gray-100 resize-none overflow-hidden"
-                                        />
-                                    </td>
-                                    {/* Responsable: portal dropdown */}
-                                    <td
-                                        className="px-3 py-2 relative"
-                                        ref={(el) => { if (el) userCellRefs.current[action.id] = el; }}
-                                    >
-                                        <div
-                                            onClick={() => setEditingUsersActionId(isEditingUsers ? null : action.id)}
-                                            className="cursor-pointer text-gray-700 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded px-1 py-0.5 min-h-[24px]"
-                                            title="Clic para editar responsables"
-                                        >
-                                            {(action.assignedUsers || []).length > 0
-                                                ? action.assignedUsers.map(uid => getUserName(uid)).join(", ")
-                                                : <span className="text-gray-400 dark:text-gray-500 italic">Sin asignar</span>}
-                                        </div>
-                                        {isEditingUsers && userCellRefs.current[action.id] && (
-                                            <UserCheckDropdown
-                                                users={projectUsers}
-                                                selected={action.assignedUsers || []}
-                                                onToggle={(uid) => toggleExistingActionUser(action.id, uid)}
-                                                onClose={() => setEditingUsersActionId(null)}
-                                                anchorEl={userCellRefs.current[action.id]}
+                                <>
+                                    <tr key={action.id} className={`hover:bg-gray-50 dark:hover:bg-gray-800 transition ${action.priority ? 'bg-red-50/50 dark:bg-red-900/20' : ''}`}>
+                                        <td className="px-3 py-2 text-gray-400 dark:text-gray-500">{action.seqId || "-"}</td>
+                                        <td className="px-3 py-2 text-center">
+                                            <input
+                                                type="checkbox"
+                                                checked={!!action.priority}
+                                                onChange={(e) => handleUpdateField(action.id, "priority", e.target.checked)}
+                                                className="w-4 h-4 text-red-500 rounded cursor-pointer accent-red-500"
+                                                title="Marcar como prioritaria"
                                             />
-                                        )}
-                                    </td>
-                                    <td className="px-3 py-2">
-                                        <select
-                                            value={action.status || "pendiente"}
-                                            onChange={(e) => handleStatusChange(action.id, e.target.value)}
-                                            className="rounded-full text-sm font-semibold px-3 py-1.5 border-0 cursor-pointer w-full min-w-[120px] shadow-sm"
-                                            style={{ backgroundColor: statusCfg.color, color: getReadableTextColor(statusCfg.color) }}
+                                        </td>
+                                        <td className="px-3 py-2 text-gray-600 dark:text-gray-200 whitespace-nowrap">
+                                            {action.createdAt?.seconds
+                                                ? new Date(action.createdAt.seconds * 1000).toLocaleDateString('es-ES')
+                                                : '-'}
+                                        </td>
+                                        <td className="px-3 py-2">
+                                            <textarea
+                                                defaultValue={action.action}
+                                                onBlur={(e) => {
+                                                    if (e.target.value !== action.action)
+                                                        handleUpdateField(action.id, "action", e.target.value);
+                                                }}
+                                                onInput={(e) => autoResize(e.target)}
+                                                ref={(el) => { if (el) setTimeout(() => autoResize(el), 0); }}
+                                                rows={1}
+                                                className="w-full bg-transparent border-0 focus:ring-1 focus:ring-blue-400 rounded px-1 py-0.5 text-gray-800 dark:text-gray-100 resize-none overflow-hidden"
+                                            />
+                                        </td>
+                                        {/* Responsable: portal dropdown */}
+                                        <td
+                                            className="px-3 py-2 relative"
+                                            ref={(el) => { if (el) userCellRefs.current[action.id] = el; }}
                                         >
-                                            {statuses.map(s => (
-                                                <option key={s.id} value={s.id} style={{ color: "#333", backgroundColor: "#fff" }}>{s.label}</option>
-                                            ))}
-                                        </select>
-                                    </td>
-                                    <td className="px-1 py-2">
-                                        <input
-                                            type="date"
-                                            defaultValue={action.proposedStartDate || ""}
-                                            onBlur={(e) => handleUpdateField(action.id, "proposedStartDate", e.target.value)}
-                                            className="bg-transparent border-0 focus:ring-1 focus:ring-blue-400 rounded text-xs text-gray-700 dark:text-gray-200 w-full p-0"
-                                        />
-                                    </td>
-                                    <td className="px-1 py-2">
-                                        <input
-                                            type="date"
-                                            defaultValue={action.proposedEndDate || ""}
-                                            onBlur={(e) => handleUpdateField(action.id, "proposedEndDate", e.target.value)}
-                                            className={`bg-transparent border-0 focus:ring-1 focus:ring-blue-400 rounded text-xs w-full p-0 ${isOverdue(action.proposedEndDate) && statusCfg.type !== 'end'
-                                                ? 'text-red-600 font-semibold'
-                                                : 'text-gray-700 dark:text-gray-200'
-                                                }`}
-                                        />
-                                    </td>
-                                    <td className="px-1 py-2">
-                                        <input
-                                            type="date"
-                                            defaultValue={action.startDate || ""}
-                                            key={action.startDate || "empty-start"}
-                                            onBlur={(e) => handleUpdateField(action.id, "startDate", e.target.value)}
-                                            className="bg-transparent border-0 focus:ring-1 focus:ring-blue-400 rounded text-xs text-gray-700 dark:text-gray-200 w-full p-0"
-                                        />
-                                    </td>
-                                    <td className="px-1 py-2">
-                                        <input
-                                            type="date"
-                                            defaultValue={action.actualEndDate || ""}
-                                            key={action.actualEndDate || "empty-end"}
-                                            onBlur={(e) => handleUpdateField(action.id, "actualEndDate", e.target.value)}
-                                            className="bg-transparent border-0 focus:ring-1 focus:ring-blue-400 rounded text-xs text-gray-700 dark:text-gray-200 w-full p-0"
-                                        />
-                                    </td>
-                                    <td className="px-3 py-2">
-                                        <textarea
-                                            defaultValue={action.observations || ""}
-                                            onBlur={(e) => {
-                                                if (e.target.value !== (action.observations || ""))
-                                                    handleUpdateField(action.id, "observations", e.target.value);
-                                            }}
-                                            onInput={(e) => autoResize(e.target)}
-                                            ref={(el) => { if (el) setTimeout(() => autoResize(el), 0); }}
-                                            rows={1}
-                                            className="w-full bg-transparent border-0 focus:ring-1 focus:ring-blue-400 rounded px-1 py-0.5 text-gray-700 dark:text-gray-200 resize-none overflow-hidden"
-                                        />
-                                    </td>
-                                    <td className="px-3 py-2">
-                                        <button onClick={() => handleDeleteAction(action.id)} className="text-red-400 hover:text-red-600">
-                                            <Trash2 className="w-4 h-4" />
-                                        </button>
-                                    </td>
-                                </tr>
+                                            <div
+                                                onClick={() => setEditingUsersActionId(isEditingUsers ? null : action.id)}
+                                                className="cursor-pointer text-gray-700 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded px-1 py-0.5 min-h-[24px]"
+                                                title="Clic para editar responsables"
+                                            >
+                                                {(action.assignedUsers || []).length > 0
+                                                    ? action.assignedUsers.map(uid => getUserName(uid)).join(", ")
+                                                    : <span className="text-gray-400 dark:text-gray-500 italic">Sin asignar</span>}
+                                            </div>
+                                            {isEditingUsers && userCellRefs.current[action.id] && (
+                                                <UserCheckDropdown
+                                                    users={projectUsers}
+                                                    selected={action.assignedUsers || []}
+                                                    onToggle={(uid) => toggleExistingActionUser(action.id, uid)}
+                                                    onClose={() => setEditingUsersActionId(null)}
+                                                    anchorEl={userCellRefs.current[action.id]}
+                                                />
+                                            )}
+                                        </td>
+                                        <td className="px-3 py-2">
+                                            <select
+                                                value={action.status || "pendiente"}
+                                                onChange={(e) => handleStatusChange(action.id, e.target.value)}
+                                                className="rounded-full text-sm font-semibold px-3 py-1.5 border-0 cursor-pointer w-full min-w-[120px] shadow-sm"
+                                                style={{ backgroundColor: statusCfg.color, color: getReadableTextColor(statusCfg.color) }}
+                                            >
+                                                {statuses.map(s => (
+                                                    <option key={s.id} value={s.id} style={{ color: "#333", backgroundColor: "#fff" }}>{s.label}</option>
+                                                ))}
+                                            </select>
+                                        </td>
+                                        <td className="px-1 py-2">
+                                            <input
+                                                type="date"
+                                                defaultValue={action.proposedStartDate || ""}
+                                                onBlur={(e) => handleUpdateField(action.id, "proposedStartDate", e.target.value)}
+                                                className="bg-transparent border-0 focus:ring-1 focus:ring-blue-400 rounded text-xs text-gray-700 dark:text-gray-200 w-full p-0"
+                                            />
+                                        </td>
+                                        <td className="px-1 py-2">
+                                            <input
+                                                type="date"
+                                                defaultValue={action.proposedEndDate || ""}
+                                                onBlur={(e) => handleUpdateField(action.id, "proposedEndDate", e.target.value)}
+                                                className={`bg-transparent border-0 focus:ring-1 focus:ring-blue-400 rounded text-xs w-full p-0 ${isOverdue(action.proposedEndDate) && statusCfg.type !== 'end'
+                                                    ? 'text-red-600 font-semibold'
+                                                    : 'text-gray-700 dark:text-gray-200'
+                                                    }`}
+                                            />
+                                        </td>
+                                        <td className="px-1 py-2">
+                                            <input
+                                                type="date"
+                                                defaultValue={action.startDate || ""}
+                                                key={action.startDate || "empty-start"}
+                                                onBlur={(e) => handleUpdateField(action.id, "startDate", e.target.value)}
+                                                className="bg-transparent border-0 focus:ring-1 focus:ring-blue-400 rounded text-xs text-gray-700 dark:text-gray-200 w-full p-0"
+                                            />
+                                        </td>
+                                        <td className="px-1 py-2">
+                                            <input
+                                                type="date"
+                                                defaultValue={action.actualEndDate || ""}
+                                                key={action.actualEndDate || "empty-end"}
+                                                onBlur={(e) => handleUpdateField(action.id, "actualEndDate", e.target.value)}
+                                                className="bg-transparent border-0 focus:ring-1 focus:ring-blue-400 rounded text-xs text-gray-700 dark:text-gray-200 w-full p-0"
+                                            />
+                                        </td>
+                                        <td className="px-1 py-2 text-center">
+                                            <button
+                                                onClick={() => setExpandedObsActionId(expandedObsActionId === action.id ? null : action.id)}
+                                                className={`p-1 rounded transition ${(action.observations || "").trim() ? 'text-blue-500 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/30' : 'text-gray-300 dark:text-gray-600 hover:text-gray-500 dark:hover:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'}`}
+                                                title={expandedObsActionId === action.id ? "Ocultar observaciones" : "Ver observaciones"}
+                                            >
+                                                {(action.observations || "").trim() ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                                            </button>
+                                        </td>
+                                        <td className="px-3 py-2">
+                                            <button onClick={() => handleDeleteAction(action.id)} className="text-red-400 hover:text-red-600">
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    {
+                                        expandedObsActionId === action.id && (
+                                            <tr className="bg-blue-50/30 dark:bg-blue-900/10">
+                                                <td colSpan={12} className="px-6 py-3">
+                                                    <div className="flex items-start gap-2">
+                                                        <label className="text-xs font-medium text-gray-500 dark:text-gray-400 pt-1.5 flex-shrink-0">Observaciones:</label>
+                                                        <textarea
+                                                            defaultValue={action.observations || ""}
+                                                            key={`obs-${action.id}-${expandedObsActionId}`}
+                                                            onBlur={(e) => {
+                                                                if (e.target.value !== (action.observations || ""))
+                                                                    handleUpdateField(action.id, "observations", e.target.value);
+                                                            }}
+                                                            onInput={(e) => autoResize(e.target)}
+                                                            ref={(el) => { if (el) setTimeout(() => autoResize(el), 0); }}
+                                                            rows={2}
+                                                            placeholder="Escribe observaciones..."
+                                                            className="flex-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 rounded-lg px-3 py-2 text-sm text-gray-700 dark:text-gray-200 resize-none overflow-hidden"
+                                                        />
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        )}
+                                </>
                             );
                         })}
 
@@ -1000,12 +1022,12 @@ export default function ProjectDetail() {
 
                         {filteredActions.length === 0 && !showNewRow && (
                             <tr>
-                                <td colSpan="11" className="text-center py-8 text-gray-400 dark:text-gray-500">
+                                <td colSpan="12" className="text-center py-8 text-gray-400 dark:text-gray-500">
                                     {hasActiveFilters ? "No hay acciones que coincidan con los filtros." : "No hay acciones aún. Haz clic en \"Nueva Acción\" para empezar."}
                                 </td>
                             </tr>
                         )}
-                    </tbody>
+                    </tbody >
                 </table>
             </div>
 

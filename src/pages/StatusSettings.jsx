@@ -86,6 +86,7 @@ export default function StatusSettings() {
                         >
                             <option value="none">Sin tipo</option>
                             <option value="start">📅 Inicio</option>
+                            <option value="inprogress">🔄 En curso</option>
                             <option value="end">🏁 Fin</option>
                         </select>
                         <div
@@ -108,6 +109,7 @@ export default function StatusSettings() {
                 <strong>Tipos de estado:</strong>
                 <ul className="mt-1 ml-4 list-disc">
                     <li><strong>Inicio:</strong> Al seleccionar este estado, se rellena automáticamente la fecha de inicio de la acción.</li>
+                    <li><strong>En curso:</strong> Marca la acción como en curso. Se usa para filtrar en informes.</li>
                     <li><strong>Fin:</strong> Al seleccionar este estado, se rellena automáticamente la fecha fin real (solo si estaba vacía).</li>
                     <li><strong>Sin tipo:</strong> No modifica ninguna fecha automáticamente.</li>
                 </ul>
