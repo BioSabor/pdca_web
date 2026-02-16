@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { projectService, actionService, statusService, userService, departmentService } from "../services/projectService";
-import { ArrowLeft, Plus, Trash2, Filter, X, ChevronDown, Pencil, Trash, Building2, Eye, EyeOff } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Filter, X, ChevronDown, Pencil, Trash, Building2, Eye, EyeOff, ListTodo } from "lucide-react";
 import { createPortal } from "react-dom";
 import { useAuth } from "../context/AuthContext";
 import GanttModal from "../components/GanttModal";
 
-const DEFAULT_VISIBLE_COLUMNS = ["proposedStartDate", "proposedEndDate", "startDate", "actualEndDate", "observations"];
+const DEFAULT_VISIBLE_COLUMNS = ["proposedStartDate", "proposedEndDate", "startDate", "actualEndDate", "observations", "subactions"];
 
 // Componente dropdown con checkboxes reutilizable
 function MultiCheckDropdown({ options, selected, onChange, placeholder }) {
@@ -239,6 +239,8 @@ export default function ProjectDetail() {
 
     const [showGantt, setShowGantt] = useState(false);
     const [expandedObsActionId, setExpandedObsActionId] = useState(null);
+    const [expandedSubactionsActionId, setExpandedSubactionsActionId] = useState(null);
+    const [subactionDrafts, setSubactionDrafts] = useState({});
 
     useEffect(() => { loadAll(); }, [id]);
 
@@ -281,6 +283,11 @@ export default function ProjectDetail() {
         const b = parseInt(clean.slice(4, 6), 16);
         const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
         return luminance > 0.6 ? "#111827" : "#F9FAFB";
+    }
+
+    function getStatusStyle(statusId) {
+        const cfg = getStatusConfig(statusId);
+        return { backgroundColor: cfg.color, color: getReadableTextColor(cfg.color) };
     }
 
     function autoResize(el) {
@@ -371,6 +378,49 @@ export default function ProjectDetail() {
         handleUpdateField(actionId, "assignedUsers", updated);
     }
 
+    function setSubactionDraft(actionId, updates) {
+        setSubactionDrafts(prev => ({
+            ...prev,
+            [actionId]: {
+                title: "",
+                status: "pendiente",
+                assignedUsers: [],
+                ...(prev[actionId] || {}),
+                ...updates
+            }
+        }));
+    }
+
+    function updateSubactions(actionId, updater) {
+        const action = actions.find(a => a.id === actionId);
+        const current = action?.subactions || [];
+        const next = typeof updater === "function" ? updater(current) : updater;
+        handleUpdateField(actionId, "subactions", next);
+    }
+
+    function addSubaction(actionId) {
+        const draft = subactionDrafts[actionId] || {};
+        if (!draft.title || !draft.title.trim()) return alert("Escribe una descripcion para la subaccion.");
+        const newSubaction = {
+            id: `sub_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+            title: draft.title.trim(),
+            status: draft.status || "pendiente",
+            assignedUsers: draft.assignedUsers || []
+        };
+        updateSubactions(actionId, (current) => [...current, newSubaction]);
+        setSubactionDraft(actionId, { title: "", status: "pendiente", assignedUsers: [] });
+    }
+
+    function updateSubactionField(actionId, subactionId, field, value) {
+        updateSubactions(actionId, (current) =>
+            current.map(sub => (sub.id === subactionId ? { ...sub, [field]: value } : sub))
+        );
+    }
+
+    function deleteSubaction(actionId, subactionId) {
+        updateSubactions(actionId, (current) => current.filter(sub => sub.id !== subactionId));
+    }
+
     function clearFilters() {
         setFilterUsers([]);
         setFilterStatuses([]);
@@ -440,7 +490,8 @@ export default function ProjectDetail() {
         { value: "proposedEndDate", label: "F. Fin Propuesta" },
         { value: "startDate", label: "F. Inicio Real" },
         { value: "actualEndDate", label: "F. Fin Real" },
-        { value: "observations", label: "Observaciones" }
+        { value: "observations", label: "Observaciones" },
+        { value: "subactions", label: "Subacciones" }
     ];
     const isColumnVisible = (key) => visibleColumns.includes(key);
     const totalColumns = 7 + visibleColumns.length;
@@ -835,6 +886,92 @@ export default function ProjectDetail() {
                                         </div>
                                     )}
 
+                                    {isColumnVisible("subactions") && (
+                                        <div className="pt-1">
+                                            <button
+                                                onClick={() => setExpandedSubactionsActionId(expandedSubactionsActionId === action.id ? null : action.id)}
+                                                className="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-300 dark:hover:text-blue-200"
+                                            >
+                                                Subacciones ({(action.subactions || []).length})
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    {isColumnVisible("subactions") && expandedSubactionsActionId === action.id && (
+                                        <div className="space-y-2">
+                                            {(action.subactions || []).length === 0 && (
+                                                <div className="text-xs text-gray-400 dark:text-gray-500">Sin subacciones.</div>
+                                            )}
+                                            {(action.subactions || []).map((sub) => {
+                                                const subStatusCfg = getStatusConfig(sub.status || "pendiente");
+                                                return (
+                                                <div key={sub.id} className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-3 space-y-2">
+                                                    <input
+                                                        type="text"
+                                                        defaultValue={sub.title}
+                                                        onBlur={(e) => updateSubactionField(action.id, sub.id, "title", e.target.value)}
+                                                        className="w-full border border-gray-200 dark:border-gray-700 rounded px-2 py-1 text-sm dark:bg-gray-950 dark:text-gray-100"
+                                                        placeholder="Descripcion"
+                                                    />
+                                                    <MultiCheckDropdown
+                                                        options={userOptions}
+                                                        selected={sub.assignedUsers || []}
+                                                        onChange={(selected) => updateSubactionField(action.id, sub.id, "assignedUsers", selected)}
+                                                        placeholder="Responsables"
+                                                    />
+                                                    <select
+                                                        value={sub.status || "pendiente"}
+                                                        onChange={(e) => updateSubactionField(action.id, sub.id, "status", e.target.value)}
+                                                        className="rounded-full text-sm font-semibold px-3 py-1.5 border-0 cursor-pointer w-full shadow-sm"
+                                                        style={{ backgroundColor: subStatusCfg.color, color: getReadableTextColor(subStatusCfg.color) }}
+                                                    >
+                                                        {statuses.map(s => (
+                                                            <option key={s.id} value={s.id}>{s.label}</option>
+                                                        ))}
+                                                    </select>
+                                                    <button
+                                                        onClick={() => deleteSubaction(action.id, sub.id)}
+                                                        className="text-xs text-red-500 hover:text-red-700"
+                                                    >
+                                                        Eliminar subaccion
+                                                    </button>
+                                                </div>
+                                            );
+                                            })}
+                                            <div className="rounded-lg border border-dashed border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-3 space-y-2">
+                                                <input
+                                                    type="text"
+                                                    value={(subactionDrafts[action.id] || {}).title || ""}
+                                                    onChange={(e) => setSubactionDraft(action.id, { title: e.target.value })}
+                                                    className="w-full border border-gray-200 dark:border-gray-700 rounded px-2 py-1 text-sm dark:bg-gray-950 dark:text-gray-100"
+                                                    placeholder="Nueva subaccion"
+                                                />
+                                                <MultiCheckDropdown
+                                                    options={userOptions}
+                                                    selected={(subactionDrafts[action.id] || {}).assignedUsers || []}
+                                                    onChange={(selected) => setSubactionDraft(action.id, { assignedUsers: selected })}
+                                                    placeholder="Responsables"
+                                                />
+                                                <select
+                                                    value={(subactionDrafts[action.id] || {}).status || "pendiente"}
+                                                    onChange={(e) => setSubactionDraft(action.id, { status: e.target.value })}
+                                                    className="rounded-full text-sm font-semibold px-3 py-1.5 border-0 cursor-pointer w-full shadow-sm"
+                                                    style={getStatusStyle((subactionDrafts[action.id] || {}).status || "pendiente")}
+                                                >
+                                                    {statuses.map(s => (
+                                                        <option key={s.id} value={s.id}>{s.label}</option>
+                                                    ))}
+                                                </select>
+                                                <button
+                                                    onClick={() => addSubaction(action.id)}
+                                                    className="text-xs bg-blue-600 text-white rounded px-3 py-1 hover:bg-blue-700"
+                                                >
+                                                    Agregar subaccion
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+
                                     {/* Prioridad + Eliminar */}
                                     <div className="flex items-center justify-between pt-1">
                                         <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300 cursor-pointer">
@@ -890,6 +1027,9 @@ export default function ProjectDetail() {
                             {isColumnVisible("observations") && (
                                 <th className="px-1 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase w-10" title="Observaciones"><Eye className="w-3.5 h-3.5 mx-auto" /></th>
                             )}
+                            {isColumnVisible("subactions") && (
+                                <th className="px-1 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase w-10" title="Subacciones"><ListTodo className="w-3.5 h-3.5 mx-auto" /></th>
+                            )}
                             <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase w-10"></th>
                         </tr>
                     </thead>
@@ -897,6 +1037,7 @@ export default function ProjectDetail() {
                         {filteredActions.map((action, index) => {
                             const statusCfg = getStatusConfig(action.status);
                             const isEditingUsers = editingUsersActionId === action.id;
+                            const subactionCount = (action.subactions || []).length;
                             return (
                                 <>
                                     <tr key={action.id} className={`hover:bg-gray-50 dark:hover:bg-gray-800 transition ${action.priority ? 'bg-red-50/50 dark:bg-red-900/20' : ''}`}>
@@ -1020,6 +1161,23 @@ export default function ProjectDetail() {
                                                 </button>
                                             </td>
                                         )}
+                                        {isColumnVisible("subactions") && (
+                                            <td className="px-1 py-2 text-center">
+                                                <button
+                                                    onClick={() => setExpandedSubactionsActionId(expandedSubactionsActionId === action.id ? null : action.id)}
+                                                    className="p-1 rounded transition text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:text-gray-400 dark:hover:text-blue-300 dark:hover:bg-blue-900/30"
+                                                    title="Subacciones"
+                                                >
+                                                    {subactionCount > 0 ? (
+                                                        <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue-600 text-white text-xs">
+                                                            {subactionCount}
+                                                        </span>
+                                                    ) : (
+                                                        <Plus className="w-4 h-4" />
+                                                    )}
+                                                </button>
+                                            </td>
+                                        )}
                                         <td className="px-3 py-2">
                                             <button onClick={() => handleDeleteAction(action.id)} className="text-red-400 hover:text-red-600">
                                                 <Trash2 className="w-4 h-4" />
@@ -1049,6 +1207,89 @@ export default function ProjectDetail() {
                                                 </td>
                                             </tr>
                                         )}
+                                    {isColumnVisible("subactions") && expandedSubactionsActionId === action.id && (
+                                        <tr className="bg-gray-50 dark:bg-gray-900/40">
+                                            <td colSpan={totalColumns} className="px-6 py-4">
+                                                <div className="space-y-3">
+                                                    <div className="text-xs font-semibold text-gray-600 dark:text-gray-300">Subacciones</div>
+                                                    {(action.subactions || []).length === 0 && (
+                                                        <div className="text-xs text-gray-400 dark:text-gray-500">Sin subacciones.</div>
+                                                    )}
+                                                    {(action.subactions || []).map((sub) => {
+                                                        const subStatusCfg = getStatusConfig(sub.status || "pendiente");
+                                                        return (
+                                                        <div key={sub.id} className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-3">
+                                                            <div className="flex flex-wrap gap-2 items-start">
+                                                                <input
+                                                                    type="text"
+                                                                    defaultValue={sub.title}
+                                                                    onBlur={(e) => updateSubactionField(action.id, sub.id, "title", e.target.value)}
+                                                                    className="flex-1 min-w-[240px] border border-gray-200 dark:border-gray-700 rounded px-2 py-1 text-sm dark:bg-gray-950 dark:text-gray-100"
+                                                                    placeholder="Descripcion"
+                                                                />
+                                                                <select
+                                                                    value={sub.status || "pendiente"}
+                                                                    onChange={(e) => updateSubactionField(action.id, sub.id, "status", e.target.value)}
+                                                                    className="rounded-full text-sm font-semibold px-3 py-1.5 border-0 cursor-pointer shadow-sm"
+                                                                    style={{ backgroundColor: subStatusCfg.color, color: getReadableTextColor(subStatusCfg.color) }}
+                                                                >
+                                                                    {statuses.map(s => (
+                                                                        <option key={s.id} value={s.id}>{s.label}</option>
+                                                                    ))}
+                                                                </select>
+                                                                <MultiCheckDropdown
+                                                                    options={userOptions}
+                                                                    selected={sub.assignedUsers || []}
+                                                                    onChange={(selected) => updateSubactionField(action.id, sub.id, "assignedUsers", selected)}
+                                                                    placeholder="Responsables"
+                                                                />
+                                                                <button
+                                                                    onClick={() => deleteSubaction(action.id, sub.id)}
+                                                                    className="text-xs text-red-500 hover:text-red-700"
+                                                                >
+                                                                    Eliminar
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                    })}
+                                                    <div className="rounded-lg border border-dashed border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-3">
+                                                        <div className="flex flex-wrap gap-2 items-start">
+                                                            <input
+                                                                type="text"
+                                                                value={(subactionDrafts[action.id] || {}).title || ""}
+                                                                onChange={(e) => setSubactionDraft(action.id, { title: e.target.value })}
+                                                                className="flex-1 min-w-[240px] border border-gray-200 dark:border-gray-700 rounded px-2 py-1 text-sm dark:bg-gray-950 dark:text-gray-100"
+                                                                placeholder="Nueva subaccion"
+                                                            />
+                                                            <select
+                                                                value={(subactionDrafts[action.id] || {}).status || "pendiente"}
+                                                                onChange={(e) => setSubactionDraft(action.id, { status: e.target.value })}
+                                                                className="rounded-full text-sm font-semibold px-3 py-1.5 border-0 cursor-pointer shadow-sm"
+                                                                style={getStatusStyle((subactionDrafts[action.id] || {}).status || "pendiente")}
+                                                            >
+                                                                {statuses.map(s => (
+                                                                    <option key={s.id} value={s.id}>{s.label}</option>
+                                                                ))}
+                                                            </select>
+                                                            <MultiCheckDropdown
+                                                                options={userOptions}
+                                                                selected={(subactionDrafts[action.id] || {}).assignedUsers || []}
+                                                                onChange={(selected) => setSubactionDraft(action.id, { assignedUsers: selected })}
+                                                                placeholder="Responsables"
+                                                            />
+                                                            <button
+                                                                onClick={() => addSubaction(action.id)}
+                                                                className="text-xs bg-blue-600 text-white rounded px-3 py-1 hover:bg-blue-700"
+                                                            >
+                                                                Agregar
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    )}
                                 </>
                             );
                         })}
@@ -1128,6 +1369,11 @@ export default function ProjectDetail() {
                                             placeholder="Observaciones..."
                                             rows={1}
                                             className="w-full border border-blue-300 dark:border-blue-700 rounded px-1 py-0.5 text-sm resize-none overflow-hidden dark:bg-gray-900 dark:text-gray-100" />
+                                    </td>
+                                )}
+                                {isColumnVisible("subactions") && (
+                                    <td className="px-1 py-2 text-center text-xs text-gray-400 dark:text-gray-500">
+                                        -
                                     </td>
                                 )}
                                 <td className="px-3 py-2">
