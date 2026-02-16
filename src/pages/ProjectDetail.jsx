@@ -906,68 +906,72 @@ export default function ProjectDetail() {
                                                 const subStatusCfg = getStatusConfig(sub.status || "pendiente");
                                                 return (
                                                     <div key={sub.id} className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-3 space-y-2">
-                                                        <input
-                                                            type="text"
-                                                            defaultValue={sub.title}
-                                                            onBlur={(e) => updateSubactionField(action.id, sub.id, "title", e.target.value)}
-                                                            className="w-full border border-gray-200 dark:border-gray-700 rounded px-2 py-1 text-sm dark:bg-gray-950 dark:text-gray-100"
-                                                            placeholder="Descripcion"
-                                                        />
-                                                        <MultiCheckDropdown
-                                                            options={userOptions}
-                                                            selected={sub.assignedUsers || []}
-                                                            onChange={(selected) => updateSubactionField(action.id, sub.id, "assignedUsers", selected)}
-                                                            placeholder="Responsables"
-                                                        />
-                                                        <select
-                                                            value={sub.status || "pendiente"}
-                                                            onChange={(e) => updateSubactionField(action.id, sub.id, "status", e.target.value)}
-                                                            className="rounded-full text-sm font-semibold px-3 py-1.5 border-0 cursor-pointer w-full min-w-[120px] shadow-sm"
-                                                            style={{ backgroundColor: subStatusCfg.color, color: getReadableTextColor(subStatusCfg.color) }}
-                                                        >
-                                                            {statuses.map(s => (
-                                                                <option key={s.id} value={s.id} style={{ color: "#333", backgroundColor: "#fff" }}>{s.label}</option>
-                                                            ))}
-                                                        </select>
-                                                        <button
-                                                            onClick={() => deleteSubaction(action.id, sub.id)}
-                                                            className="text-xs text-red-500 hover:text-red-700"
-                                                        >
-                                                            Eliminar subaccion
-                                                        </button>
+                                                        <div className="flex flex-wrap gap-2 items-start">
+                                                            <input
+                                                                type="text"
+                                                                defaultValue={sub.title}
+                                                                onBlur={(e) => updateSubactionField(action.id, sub.id, "title", e.target.value)}
+                                                                className="flex-1 min-w-[200px] border border-gray-200 dark:border-gray-700 rounded px-2 py-1 text-sm dark:bg-gray-950 dark:text-gray-100"
+                                                                placeholder="Descripcion"
+                                                            />
+                                                            <MultiCheckDropdown
+                                                                options={userOptions}
+                                                                selected={sub.assignedUsers || []}
+                                                                onChange={(selected) => updateSubactionField(action.id, sub.id, "assignedUsers", selected)}
+                                                                placeholder="Responsables"
+                                                            />
+                                                            <select
+                                                                value={sub.status || "pendiente"}
+                                                                onChange={(e) => updateSubactionField(action.id, sub.id, "status", e.target.value)}
+                                                                className="rounded-full text-sm font-semibold px-3 py-1.5 border-0 cursor-pointer min-w-[120px] shadow-sm"
+                                                                style={{ backgroundColor: subStatusCfg.color, color: getReadableTextColor(subStatusCfg.color) }}
+                                                            >
+                                                                {statuses.map(s => (
+                                                                    <option key={s.id} value={s.id} style={{ color: "#333", backgroundColor: "#fff" }}>{s.label}</option>
+                                                                ))}
+                                                            </select>
+                                                            <button
+                                                                onClick={() => deleteSubaction(action.id, sub.id)}
+                                                                className="text-xs text-red-500 hover:text-red-700"
+                                                            >
+                                                                Eliminar subaccion
+                                                            </button>
+                                                        </div>
                                                     </div>
                                                 );
                                             })}
                                             <div className="rounded-lg border border-dashed border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-3 space-y-2">
-                                                <input
-                                                    type="text"
-                                                    value={(subactionDrafts[action.id] || {}).title || ""}
-                                                    onChange={(e) => setSubactionDraft(action.id, { title: e.target.value })}
-                                                    className="w-full border border-gray-200 dark:border-gray-700 rounded px-2 py-1 text-sm dark:bg-gray-950 dark:text-gray-100"
-                                                    placeholder="Nueva subaccion"
-                                                />
-                                                <MultiCheckDropdown
-                                                    options={userOptions}
-                                                    selected={(subactionDrafts[action.id] || {}).assignedUsers || []}
-                                                    onChange={(selected) => setSubactionDraft(action.id, { assignedUsers: selected })}
-                                                    placeholder="Responsables"
-                                                />
-                                                <select
-                                                    value={(subactionDrafts[action.id] || {}).status || "pendiente"}
-                                                    onChange={(e) => setSubactionDraft(action.id, { status: e.target.value })}
-                                                    className="rounded-full text-sm font-semibold px-3 py-1.5 border-0 cursor-pointer w-full min-w-[120px] shadow-sm"
-                                                    style={getStatusStyle((subactionDrafts[action.id] || {}).status || "pendiente")}
-                                                >
-                                                    {statuses.map(s => (
-                                                        <option key={s.id} value={s.id} style={{ color: "#333", backgroundColor: "#fff" }}>{s.label}</option>
-                                                    ))}
-                                                </select>
-                                                <button
-                                                    onClick={() => addSubaction(action.id)}
-                                                    className="text-xs bg-blue-600 text-white rounded px-3 py-1 hover:bg-blue-700"
-                                                >
-                                                    Agregar subaccion
-                                                </button>
+                                                <div className="flex flex-wrap gap-2 items-start">
+                                                    <input
+                                                        type="text"
+                                                        value={(subactionDrafts[action.id] || {}).title || ""}
+                                                        onChange={(e) => setSubactionDraft(action.id, { title: e.target.value })}
+                                                        className="flex-1 min-w-[200px] border border-gray-200 dark:border-gray-700 rounded px-2 py-1 text-sm dark:bg-gray-950 dark:text-gray-100"
+                                                        placeholder="Nueva subaccion"
+                                                    />
+                                                    <MultiCheckDropdown
+                                                        options={userOptions}
+                                                        selected={(subactionDrafts[action.id] || {}).assignedUsers || []}
+                                                        onChange={(selected) => setSubactionDraft(action.id, { assignedUsers: selected })}
+                                                        placeholder="Responsables"
+                                                    />
+                                                    <select
+                                                        value={(subactionDrafts[action.id] || {}).status || "pendiente"}
+                                                        onChange={(e) => setSubactionDraft(action.id, { status: e.target.value })}
+                                                        className="rounded-full text-sm font-semibold px-3 py-1.5 border-0 cursor-pointer min-w-[120px] shadow-sm"
+                                                        style={getStatusStyle((subactionDrafts[action.id] || {}).status || "pendiente")}
+                                                    >
+                                                        {statuses.map(s => (
+                                                            <option key={s.id} value={s.id} style={{ color: "#333", backgroundColor: "#fff" }}>{s.label}</option>
+                                                        ))}
+                                                    </select>
+                                                    <button
+                                                        onClick={() => addSubaction(action.id)}
+                                                        className="text-xs bg-blue-600 text-white rounded px-3 py-1 hover:bg-blue-700"
+                                                    >
+                                                        Agregar subaccion
+                                                    </button>
+                                                </div>
                                             </div>
                                         </div>
                                     )}
@@ -1219,30 +1223,30 @@ export default function ProjectDetail() {
                                                         const subStatusCfg = getStatusConfig(sub.status || "pendiente");
                                                         return (
                                                         <div key={sub.id} className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-3">
-                                                            <div className="flex flex-wrap gap-2 items-start">
+                                                            <div className="flex flex-nowrap items-center gap-2">
                                                                 <input
                                                                     type="text"
                                                                     defaultValue={sub.title}
                                                                     onBlur={(e) => updateSubactionField(action.id, sub.id, "title", e.target.value)}
-                                                                    className="flex-1 min-w-[240px] border border-gray-200 dark:border-gray-700 rounded px-2 py-1 text-sm dark:bg-gray-950 dark:text-gray-100"
+                                                                    className="flex-1 min-w-0 border border-gray-200 dark:border-gray-700 rounded px-2 py-1 text-sm dark:bg-gray-950 dark:text-gray-100"
                                                                     placeholder="Descripcion"
                                                                 />
-                                                                <select
-                                                                    value={sub.status || "pendiente"}
-                                                                    onChange={(e) => updateSubactionField(action.id, sub.id, "status", e.target.value)}
-                                                                    className="rounded-full text-sm font-semibold px-3 py-1.5 border-0 cursor-pointer w-full min-w-[120px] shadow-sm"
-                                                                    style={{ backgroundColor: subStatusCfg.color, color: getReadableTextColor(subStatusCfg.color) }}
-                                                                >
-                                                                    {statuses.map(s => (
-                                                                        <option key={s.id} value={s.id} style={{ color: "#333", backgroundColor: "#fff" }}>{s.label}</option>
-                                                                    ))}
-                                                                </select>
                                                                 <MultiCheckDropdown
                                                                     options={userOptions}
                                                                     selected={sub.assignedUsers || []}
                                                                     onChange={(selected) => updateSubactionField(action.id, sub.id, "assignedUsers", selected)}
                                                                     placeholder="Responsables"
                                                                 />
+                                                                <select
+                                                                    value={sub.status || "pendiente"}
+                                                                    onChange={(e) => updateSubactionField(action.id, sub.id, "status", e.target.value)}
+                                                                    className="rounded-full text-sm font-semibold px-3 py-1.5 border-0 cursor-pointer min-w-[140px] shadow-sm"
+                                                                    style={{ backgroundColor: subStatusCfg.color, color: getReadableTextColor(subStatusCfg.color) }}
+                                                                >
+                                                                    {statuses.map(s => (
+                                                                        <option key={s.id} value={s.id} style={{ color: "#333", backgroundColor: "#fff" }}>{s.label}</option>
+                                                                    ))}
+                                                                </select>
                                                                 <button
                                                                     onClick={() => deleteSubaction(action.id, sub.id)}
                                                                     className="text-xs text-red-500 hover:text-red-700"
@@ -1254,30 +1258,30 @@ export default function ProjectDetail() {
                                                     );
                                                     })}
                                                     <div className="rounded-lg border border-dashed border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 p-3">
-                                                        <div className="flex flex-wrap gap-2 items-start">
+                                                        <div className="flex flex-nowrap items-center gap-2">
                                                             <input
                                                                 type="text"
                                                                 value={(subactionDrafts[action.id] || {}).title || ""}
                                                                 onChange={(e) => setSubactionDraft(action.id, { title: e.target.value })}
-                                                                className="flex-1 min-w-[240px] border border-gray-200 dark:border-gray-700 rounded px-2 py-1 text-sm dark:bg-gray-950 dark:text-gray-100"
+                                                                className="flex-1 min-w-0 border border-gray-200 dark:border-gray-700 rounded px-2 py-1 text-sm dark:bg-gray-950 dark:text-gray-100"
                                                                 placeholder="Nueva subaccion"
                                                             />
-                                                            <select
-                                                                value={(subactionDrafts[action.id] || {}).status || "pendiente"}
-                                                                onChange={(e) => setSubactionDraft(action.id, { status: e.target.value })}
-                                                                className="rounded-full text-sm font-semibold px-3 py-1.5 border-0 cursor-pointer w-full min-w-[120px] shadow-sm"
-                                                                style={getStatusStyle((subactionDrafts[action.id] || {}).status || "pendiente")}
-                                                            >
-                                                                {statuses.map(s => (
-                                                                    <option key={s.id} value={s.id} style={{ color: "#333", backgroundColor: "#fff" }}>{s.label}</option>
-                                                                ))}
-                                                            </select>
                                                             <MultiCheckDropdown
                                                                 options={userOptions}
                                                                 selected={(subactionDrafts[action.id] || {}).assignedUsers || []}
                                                                 onChange={(selected) => setSubactionDraft(action.id, { assignedUsers: selected })}
                                                                 placeholder="Responsables"
                                                             />
+                                                            <select
+                                                                value={(subactionDrafts[action.id] || {}).status || "pendiente"}
+                                                                onChange={(e) => setSubactionDraft(action.id, { status: e.target.value })}
+                                                                className="rounded-full text-sm font-semibold px-3 py-1.5 border-0 cursor-pointer min-w-[140px] shadow-sm"
+                                                                style={getStatusStyle((subactionDrafts[action.id] || {}).status || "pendiente")}
+                                                            >
+                                                                {statuses.map(s => (
+                                                                    <option key={s.id} value={s.id} style={{ color: "#333", backgroundColor: "#fff" }}>{s.label}</option>
+                                                                ))}
+                                                            </select>
                                                             <button
                                                                 onClick={() => addSubaction(action.id)}
                                                                 className="text-xs bg-blue-600 text-white rounded px-3 py-1 hover:bg-blue-700"
