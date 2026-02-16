@@ -1,10 +1,11 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { collectionGroup, getDocs, doc, getDoc } from "firebase/firestore";
-import { db } from "../firebase";
-import { statusService, userService } from "../services/projectService";
 import { useAuth } from "../context/AuthContext";
 import { ChevronLeft, ChevronRight, X, ExternalLink, Calendar, Filter, ChevronDown } from "lucide-react";
+import useRealtimeAllActions from "../hooks/useRealtimeAllActions";
+import useRealtimeAllProjects from "../hooks/useRealtimeAllProjects";
+import useRealtimeStatuses from "../hooks/useRealtimeStatuses";
+import useRealtimeUsers from "../hooks/useRealtimeUsers";
 
 // ── Helpers ──────────────────────────────────────────────
 
@@ -68,13 +69,37 @@ export default function CalendarPage() {
     const [currentYear, setCurrentYear] = useState(today.getFullYear());
     const [currentMonth, setCurrentMonth] = useState(today.getMonth());
 
-    const [allActions, setAllActions] = useState([]);
-    const [projectTitles, setProjectTitles] = useState({});
-    const [usersMap, setUsersMap] = useState({});
-    const [usersArr, setUsersArr] = useState([]);
-    const [statusesMap, setStatusesMap] = useState({});
-    const [statusesArr, setStatusesArr] = useState([]);
-    const [loading, setLoading] = useState(true);
+    // Suscripciones en tiempo real
+    const { allActions, loading: loadingActions } = useRealtimeAllActions();
+    const { projects: allProjectsData, loading: loadingProjects } = useRealtimeAllProjects();
+    const { users: usersData, loading: loadingUsers } = useRealtimeUsers();
+    const { statuses: statusesData, loading: loadingStatuses } = useRealtimeStatuses();
+
+    const loading = loadingActions || loadingProjects || loadingUsers || loadingStatuses;
+
+    // Derivar mapas de los datos reactivos
+    const projectTitles = useMemo(() => {
+        const titles = {};
+        allProjectsData.forEach(p => { titles[p.id] = p.title; });
+        return titles;
+    }, [allProjectsData]);
+
+    const usersMap = useMemo(() => {
+        const uMap = {};
+        usersData.forEach(u => { uMap[u.id] = u.displayName || u.email || u.id; });
+        return uMap;
+    }, [usersData]);
+
+    const usersArr = usersData;
+
+    const statusesMap = useMemo(() => {
+        const sMap = {};
+        statusesData.forEach(s => { sMap[s.id] = s; });
+        return sMap;
+    }, [statusesData]);
+
+    const statusesArr = statusesData;
+
     const [selectedDay, setSelectedDay] = useState(null);
     const [filtersOpen, setFiltersOpen] = useState(false);
 
@@ -112,61 +137,7 @@ export default function CalendarPage() {
         });
     }, [selectedStatuses, selectedProjects, selectedUsers, currentUser?.uid, filtersLoaded]);
 
-    // ── Load all data ────────────────────────────────────
-    useEffect(() => {
-        let active = true;
-        async function load() {
-            setLoading(true);
-            try {
-                const [usersData, statusesData] = await Promise.all([
-                    userService.getAllUsers(),
-                    statusService.getStatuses()
-                ]);
-
-                const uMap = {};
-                usersData.forEach(u => { uMap[u.id] = u.displayName || u.email || u.id; });
-
-                const sMap = {};
-                statusesData.forEach(s => { sMap[s.id] = s; });
-
-                const snapshot = await getDocs(collectionGroup(db, "actions"));
-                const actionsData = snapshot.docs.map(d => ({
-                    id: d.id,
-                    ...d.data(),
-                    projectId: d.ref.parent.parent?.id || null
-                }));
-
-                const projectIds = [...new Set(actionsData.map(a => a.projectId).filter(Boolean))];
-                const titleEntries = await Promise.all(
-                    projectIds.map(async pid => {
-                        try {
-                            const pSnap = await getDoc(doc(db, "projects", pid));
-                            return { id: pid, title: pSnap.exists() ? pSnap.data().title : pid };
-                        } catch {
-                            return { id: pid, title: pid };
-                        }
-                    })
-                );
-                const titles = {};
-                titleEntries.forEach(e => { titles[e.id] = e.title; });
-
-                if (active) {
-                    setAllActions(actionsData);
-                    setProjectTitles(titles);
-                    setUsersMap(uMap);
-                    setUsersArr(usersData);
-                    setStatusesMap(sMap);
-                    setStatusesArr(statusesData);
-                }
-            } catch (err) {
-                console.error("Error al cargar datos del calendario:", err);
-            } finally {
-                if (active) setLoading(false);
-            }
-        }
-        load();
-        return () => { active = false; };
-    }, []);
+    // ── Derived: available projects from loaded actions ───
 
     // ── Derived: available projects from loaded actions ───
     const availableProjects = useMemo(() => {

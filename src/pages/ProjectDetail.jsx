@@ -1,10 +1,15 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { projectService, actionService, statusService, userService, departmentService } from "../services/projectService";
+import { projectService, actionService, statusService } from "../services/projectService";
 import { ArrowLeft, Plus, Trash2, Filter, X, ChevronDown, Pencil, Trash, Building2, Eye, EyeOff, ListTodo } from "lucide-react";
 import { createPortal } from "react-dom";
 import { useAuth } from "../context/AuthContext";
 import GanttModal from "../components/GanttModal";
+import useRealtimeProject from "../hooks/useRealtimeProject";
+import useRealtimeActions from "../hooks/useRealtimeActions";
+import useRealtimeStatuses from "../hooks/useRealtimeStatuses";
+import useRealtimeUsers from "../hooks/useRealtimeUsers";
+import useRealtimeDepartments from "../hooks/useRealtimeDepartments";
 
 const DEFAULT_VISIBLE_COLUMNS = ["proposedStartDate", "proposedEndDate", "startDate", "actualEndDate", "observations", "subactions"];
 
@@ -145,12 +150,14 @@ export default function ProjectDetail() {
     const { id } = useParams();
     const navigate = useNavigate();
     const { currentUser } = useAuth();
-    const [project, setProject] = useState(null);
-    const [actions, setActions] = useState([]);
-    const [statuses, setStatuses] = useState([]);
-    const [allUsers, setAllUsers] = useState([]);
-    const [allDepartments, setAllDepartments] = useState([]);
-    const [loading, setLoading] = useState(true);
+
+    // Suscripciones en tiempo real
+    const { project, loading: loadingProject } = useRealtimeProject(id);
+    const { actions, loading: loadingActions } = useRealtimeActions(id);
+    const { statuses, loading: loadingStatuses } = useRealtimeStatuses();
+    const { users: allUsers, loading: loadingUsers } = useRealtimeUsers();
+    const { departments: allDepartments, loading: loadingDepts } = useRealtimeDepartments();
+    const loading = loadingProject || loadingActions || loadingStatuses || loadingUsers || loadingDepts;
 
     const [filterUsers, setFilterUsers] = useState([]);
     const [filterStatuses, setFilterStatuses] = useState([]);
@@ -242,29 +249,6 @@ export default function ProjectDetail() {
     const [expandedSubactionsActionId, setExpandedSubactionsActionId] = useState(null);
     const [subactionDrafts, setSubactionDrafts] = useState({});
 
-    useEffect(() => { loadAll(); }, [id]);
-
-    async function loadAll() {
-        try {
-            const [proj, acts, sts, users, depts] = await Promise.all([
-                projectService.getProject(id),
-                actionService.getActions(id),
-                statusService.getStatuses(),
-                userService.getAllUsers(),
-                departmentService.getDepartments()
-            ]);
-            setProject(proj);
-            setActions(acts);
-            setStatuses(sts);
-            setAllUsers(users);
-            setAllDepartments(depts);
-        } catch (error) {
-            console.error("Error cargando proyecto:", error);
-        } finally {
-            setLoading(false);
-        }
-    }
-
     function getUserName(uid) {
         const user = allUsers.find(u => u.id === uid);
         return user?.displayName || user?.email?.split("@")[0] || uid;
@@ -315,8 +299,7 @@ export default function ProjectDetail() {
     async function handleAddAction() {
         if (!newAction.action.trim()) return alert("Escribe una descripción para la acción.");
         try {
-            const { id: newId, seqId } = await actionService.addAction(id, newAction);
-            setActions([...actions, { id: newId, seqId, ...newAction, createdAt: { seconds: Date.now() / 1000 } }]);
+            await actionService.addAction(id, newAction);
             setNewAction({
                 action: "", assignedUsers: [], status: "pendiente",
                 proposedEndDate: "", startDate: "", actualEndDate: "", observations: "",
@@ -331,7 +314,6 @@ export default function ProjectDetail() {
     async function handleUpdateField(actionId, field, value) {
         try {
             await actionService.updateAction(id, actionId, { [field]: value });
-            setActions(actions.map(a => a.id === actionId ? { ...a, [field]: value } : a));
         } catch (error) {
             console.error("Error al actualizar:", error);
         }
@@ -355,7 +337,6 @@ export default function ProjectDetail() {
 
         try {
             await actionService.updateAction(id, actionId, updates);
-            setActions(actions.map(a => a.id === actionId ? { ...a, ...updates } : a));
         } catch (error) {
             console.error("Error al actualizar estado:", error);
         }
@@ -365,7 +346,6 @@ export default function ProjectDetail() {
         if (!confirm("¿Eliminar esta acción?")) return;
         try {
             await actionService.deleteAction(id, actionId);
-            setActions(actions.filter(a => a.id !== actionId));
         } catch (error) {
             alert("Error al eliminar acción");
         }
@@ -443,13 +423,6 @@ export default function ProjectDetail() {
     async function saveProjectEdits() {
         try {
             await projectService.updateProject(id, {
-                title: editTitle,
-                description: editDescription,
-                assignedUsers: editAssignedUsers,
-                assignedDepartments: editAssignedDepartments
-            });
-            setProject({
-                ...project,
                 title: editTitle,
                 description: editDescription,
                 assignedUsers: editAssignedUsers,

@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
-import { collectionGroup, doc, getDoc, getDocs, query } from "firebase/firestore";
-import { db } from "../firebase";
-import { projectService, actionService, statusService, userService } from "../services/projectService";
+import { useMemo, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { Users, AlertTriangle, Clock, ChevronDown } from "lucide-react";
+import useRealtimeAllActions from "../hooks/useRealtimeAllActions";
+import useRealtimeAllProjects from "../hooks/useRealtimeAllProjects";
+import useRealtimeStatuses from "../hooks/useRealtimeStatuses";
+import useRealtimeUsers from "../hooks/useRealtimeUsers";
+import useRealtimeProjects from "../hooks/useRealtimeProjects";
 
 function formatDateInput(date) {
     const year = date.getFullYear();
@@ -32,108 +34,65 @@ function CompletedTab() {
     const defaultRange = useMemo(() => getPreviousWeekRange(), []);
     const [startDate, setStartDate] = useState(defaultRange.start);
     const [endDate, setEndDate] = useState(defaultRange.end);
-    const [rows, setRows] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState("");
     const [expandedUserId, setExpandedUserId] = useState(null);
 
-    useEffect(() => {
-        let isActive = true;
+    // Suscripciones en tiempo real
+    const { users, loading: loadingUsers } = useRealtimeUsers();
+    const { statuses, loading: loadingStatuses } = useRealtimeStatuses();
+    const { allActions, loading: loadingActions } = useRealtimeAllActions();
+    const { projects: allProjects, loading: loadingProjects } = useRealtimeAllProjects();
 
-        async function loadReport() {
-            setLoading(true);
-            setError("");
-            try {
-                const [users, statuses] = await Promise.all([
-                    userService.getAllUsers(),
-                    statusService.getStatuses()
-                ]);
+    const loading = loadingUsers || loadingStatuses || loadingActions || loadingProjects;
 
-                const endStatusIds = statuses.filter((s) => s.type === "end").map((s) => s.id);
-                let actions = [];
+    const rows = useMemo(() => {
+        if (loading) return [];
 
-                if (endStatusIds.length > 0) {
-                    const actionsQuery = query(collectionGroup(db, "actions"));
-                    const snapshot = await getDocs(actionsQuery);
-                    actions = snapshot.docs
-                        .map((actionDoc) => ({
-                            id: actionDoc.id,
-                            ...actionDoc.data(),
-                            projectId: actionDoc.ref.parent.parent?.id || null
-                        }))
-                        .filter((action) => endStatusIds.includes(action.status));
+        const endStatusIds = statuses.filter((s) => s.type === "end").map((s) => s.id);
+
+        // Filtrar acciones terminadas en el rango de fechas
+        const filteredActions = allActions
+            .filter((action) => endStatusIds.includes(action.status))
+            .filter((action) => {
+                if (!action.actualEndDate) return false;
+                return action.actualEndDate >= startDate && action.actualEndDate <= endDate;
+            });
+
+        // Mapa de títulos de proyecto
+        const projectTitleById = {};
+        allProjects.forEach(p => { projectTitleById[p.id] = p.title; });
+
+        const dataByUser = {};
+        filteredActions.forEach((action) => {
+            const assigned = action.assignedUsers || [];
+            assigned.forEach((uid) => {
+                if (!dataByUser[uid]) {
+                    dataByUser[uid] = { userId: uid, count: 0, projects: {} };
                 }
-
-                const filteredActions = actions.filter((action) => {
-                    if (!action.actualEndDate) return false;
-                    return action.actualEndDate >= startDate && action.actualEndDate <= endDate;
-                });
-
-                const projectIds = [...new Set(filteredActions.map((a) => a.projectId).filter(Boolean))];
-                const projectEntries = await Promise.all(
-                    projectIds.map(async (projectId) => {
-                        const projectRef = doc(db, "projects", projectId);
-                        const projectSnap = await getDoc(projectRef);
-                        return {
-                            id: projectId,
-                            title: projectSnap.exists() ? projectSnap.data().title : projectId
-                        };
-                    })
-                );
-                const projectTitleById = projectEntries.reduce((acc, item) => {
-                    acc[item.id] = item.title;
-                    return acc;
-                }, {});
-
-                const dataByUser = {};
-                filteredActions.forEach((action) => {
-                    const assigned = action.assignedUsers || [];
-                    assigned.forEach((uid) => {
-                        if (!dataByUser[uid]) {
-                            dataByUser[uid] = { userId: uid, count: 0, projects: {} };
-                        }
-                        dataByUser[uid].count += 1;
-                        const projectId = action.projectId || "unknown";
-                        if (!dataByUser[uid].projects[projectId]) {
-                            dataByUser[uid].projects[projectId] = [];
-                        }
-                        dataByUser[uid].projects[projectId].push(action);
-                    });
-                });
-
-                const mappedRows = users.map((user) => {
-                    const stats = dataByUser[user.id] || { count: 0, projects: {} };
-                    return {
-                        userId: user.id,
-                        user,
-                        count: stats.count,
-                        projects: stats.projects,
-                        projectTitles: projectTitleById
-                    };
-                });
-
-                mappedRows.sort((a, b) => b.count - a.count);
-
-                if (isActive) {
-                    setRows(mappedRows);
+                dataByUser[uid].count += 1;
+                const projectId = action.projectId || "unknown";
+                if (!dataByUser[uid].projects[projectId]) {
+                    dataByUser[uid].projects[projectId] = [];
                 }
-            } catch (err) {
-                console.error("Error al cargar informes", err);
-                if (isActive) {
-                    setError("No se pudieron cargar los informes. Intentalo de nuevo.");
-                }
-            } finally {
-                if (isActive) {
-                    setLoading(false);
-                }
-            }
-        }
+                dataByUser[uid].projects[projectId].push(action);
+            });
+        });
 
-        loadReport();
-        return () => {
-            isActive = false;
-        };
-    }, [startDate, endDate]);
+        const mappedRows = users.map((user) => {
+            const stats = dataByUser[user.id] || { count: 0, projects: {} };
+            return {
+                userId: user.id,
+                user,
+                count: stats.count,
+                projects: stats.projects,
+                projectTitles: projectTitleById
+            };
+        });
+
+        mappedRows.sort((a, b) => b.count - a.count);
+        return mappedRows;
+    }, [loading, statuses, allActions, allProjects, users, startDate, endDate]);
+
+    const error = "";
 
     function toggleRow(userId) {
         setExpandedUserId((prev) => (prev === userId ? null : userId));
@@ -309,45 +268,31 @@ function CompletedTab() {
 // ─── Tab: Pendientes por Usuario ────────────────────────────────────────
 function PendingByUserTab() {
     const { currentUser } = useAuth();
-    const [allUsers, setAllUsers] = useState([]);
-    const [adminUserStats, setAdminUserStats] = useState({});
-    const [loading, setLoading] = useState(true);
+    const { users: allUsers } = useRealtimeUsers();
+    const { statuses } = useRealtimeStatuses();
+    const { projects, loading: loadingProjects } = useRealtimeProjects(currentUser?.uid);
+    const { allActions, loading: loadingActions } = useRealtimeAllActions();
 
-    useEffect(() => {
-        async function loadData() {
-            if (!currentUser) return;
-            try {
-                const [projects, statuses, users] = await Promise.all([
-                    projectService.getUserProjects(currentUser.uid),
-                    statusService.getStatuses(),
-                    userService.getAllUsers()
-                ]);
+    const loading = loadingProjects || loadingActions;
 
-                setAllUsers(users);
-                const endStatuses = statuses.filter(s => s.type === "end").map(s => s.id);
-                const userStats = {};
+    const adminUserStats = useMemo(() => {
+        if (!currentUser || loading) return {};
+        const endStatuses = statuses.filter(s => s.type === "end").map(s => s.id);
+        const projectIds = new Set(projects.map(p => p.id));
+        const userStats = {};
 
-                for (const project of projects) {
-                    const actions = await actionService.getActions(project.id);
-                    for (const action of actions) {
-                        if (endStatuses.includes(action.status)) continue;
-                        for (const uid of (action.assignedUsers || [])) {
-                            if (!userStats[uid]) userStats[uid] = { pending: 0, priority: 0 };
-                            userStats[uid].pending++;
-                            if (action.priority) userStats[uid].priority++;
-                        }
-                    }
-                }
-
-                setAdminUserStats(userStats);
-            } catch (error) {
-                console.error("Error al cargar pendientes por usuario", error);
-            } finally {
-                setLoading(false);
+        allActions.forEach(action => {
+            if (!action.projectId || !projectIds.has(action.projectId)) return;
+            if (endStatuses.includes(action.status)) return;
+            for (const uid of (action.assignedUsers || [])) {
+                if (!userStats[uid]) userStats[uid] = { pending: 0, priority: 0 };
+                userStats[uid].pending++;
+                if (action.priority) userStats[uid].priority++;
             }
-        }
-        loadData();
-    }, [currentUser]);
+        });
+
+        return userStats;
+    }, [currentUser, loading, statuses, projects, allActions]);
 
     function getUserName(uid) {
         const user = allUsers.find(u => u.id === uid);
@@ -432,51 +377,41 @@ function PendingByUserTab() {
 // ─── Tab: En Curso por Usuario ──────────────────────────────────────────
 function InProgressTab() {
     const { currentUser } = useAuth();
-    const [allUsers, setAllUsers] = useState([]);
-    const [userActions, setUserActions] = useState({});
-    const [loading, setLoading] = useState(true);
+    const { users: allUsers } = useRealtimeUsers();
+    const { statuses } = useRealtimeStatuses();
+    const { projects, loading: loadingProjects } = useRealtimeProjects(currentUser?.uid);
+    const { allActions, loading: loadingActions } = useRealtimeAllActions();
+    const { projects: allProjectsFull } = useRealtimeAllProjects();
     const [expandedUserId, setExpandedUserId] = useState(null);
 
-    useEffect(() => {
-        async function loadData() {
-            if (!currentUser) return;
-            try {
-                const [projects, statuses, users] = await Promise.all([
-                    projectService.getUserProjects(currentUser.uid),
-                    statusService.getStatuses(),
-                    userService.getAllUsers()
-                ]);
+    const loading = loadingProjects || loadingActions;
 
-                setAllUsers(users);
-                const startStatuses = statuses.filter(s => s.type === "start").map(s => s.id);
-                const dataByUser = {};
+    const userActions = useMemo(() => {
+        if (!currentUser || loading) return {};
+        const startStatuses = statuses.filter(s => s.type === "start").map(s => s.id);
+        const projectIds = new Set(projects.map(p => p.id));
+        const projectTitleMap = {};
+        allProjectsFull.forEach(p => { projectTitleMap[p.id] = p.title; });
 
-                for (const project of projects) {
-                    const actions = await actionService.getActions(project.id);
-                    for (const action of actions) {
-                        if (!startStatuses.includes(action.status)) continue;
-                        for (const uid of (action.assignedUsers || [])) {
-                            if (!dataByUser[uid]) dataByUser[uid] = [];
-                            dataByUser[uid].push({
-                                id: action.id,
-                                action: action.action,
-                                priority: action.priority,
-                                projectTitle: project.title,
-                                projectId: project.id
-                            });
-                        }
-                    }
-                }
+        const dataByUser = {};
 
-                setUserActions(dataByUser);
-            } catch (error) {
-                console.error("Error al cargar acciones en curso", error);
-            } finally {
-                setLoading(false);
+        allActions.forEach(action => {
+            if (!action.projectId || !projectIds.has(action.projectId)) return;
+            if (!startStatuses.includes(action.status)) return;
+            for (const uid of (action.assignedUsers || [])) {
+                if (!dataByUser[uid]) dataByUser[uid] = [];
+                dataByUser[uid].push({
+                    id: action.id,
+                    action: action.action,
+                    priority: action.priority,
+                    projectTitle: projectTitleMap[action.projectId] || action.projectId,
+                    projectId: action.projectId
+                });
             }
-        }
-        loadData();
-    }, [currentUser]);
+        });
+
+        return dataByUser;
+    }, [currentUser, loading, statuses, projects, allActions, allProjectsFull]);
 
     function getUserName(uid) {
         const user = allUsers.find(u => u.id === uid);

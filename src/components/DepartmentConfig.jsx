@@ -1,26 +1,19 @@
 import { useState, useEffect } from "react";
 import { departmentService } from "../services/projectService";
 import { Plus, Trash2, Building2 } from "lucide-react";
+import useRealtimeDepartments from "../hooks/useRealtimeDepartments";
 
 export default function DepartmentConfig() {
+    const { departments: realtimeDepartments, loading } = useRealtimeDepartments();
     const [departments, setDepartments] = useState([]);
-    const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
 
+    // Sincronizar estado local con datos en tiempo real (solo si no estamos guardando)
     useEffect(() => {
-        loadDepartments();
-    }, []);
-
-    async function loadDepartments() {
-        try {
-            const data = await departmentService.getDepartments();
-            setDepartments(data);
-        } catch (error) {
-            console.error("Error al cargar departamentos:", error);
-        } finally {
-            setLoading(false);
+        if (!saving) {
+            setDepartments(realtimeDepartments);
         }
-    }
+    }, [realtimeDepartments, saving]);
 
     function addDepartment() {
         const newId = "dept_" + Date.now();

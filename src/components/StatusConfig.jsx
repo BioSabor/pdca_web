@@ -1,26 +1,19 @@
 import { useState, useEffect } from "react";
 import { statusService } from "../services/projectService";
 import { Plus, Trash2, GripVertical } from "lucide-react";
+import useRealtimeStatuses from "../hooks/useRealtimeStatuses";
 
 export default function StatusConfig() {
+    const { statuses: realtimeStatuses, loading } = useRealtimeStatuses();
     const [statuses, setStatuses] = useState([]);
-    const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
 
+    // Sincronizar estado local con datos en tiempo real (solo si no estamos editando)
     useEffect(() => {
-        loadStatuses();
-    }, []);
-
-    async function loadStatuses() {
-        try {
-            const data = await statusService.getStatuses();
-            setStatuses(data);
-        } catch (error) {
-            console.error("Error al cargar estados:", error);
-        } finally {
-            setLoading(false);
+        if (!saving) {
+            setStatuses(realtimeStatuses);
         }
-    }
+    }, [realtimeStatuses, saving]);
 
     function addStatus() {
         const newId = "estado_" + Date.now();

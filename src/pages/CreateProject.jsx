@@ -1,39 +1,23 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { projectService, userService, departmentService } from "../services/projectService";
+import { projectService } from "../services/projectService";
 import { ArrowLeft, X, Building2 } from "lucide-react";
 import { Link } from "react-router-dom";
+import useRealtimeUsers from "../hooks/useRealtimeUsers";
+import useRealtimeDepartments from "../hooks/useRealtimeDepartments";
 
 export default function CreateProject() {
     const { currentUser } = useAuth();
     const navigate = useNavigate();
     const [title, setTitle] = useState("");
     const [description, setDescription] = useState("");
-    const [allUsers, setAllUsers] = useState([]);
-    const [selectedUsers, setSelectedUsers] = useState([]);
-    const [allDepartments, setAllDepartments] = useState([]);
+    const { users: allUsers } = useRealtimeUsers();
+    const [selectedUsers, setSelectedUsers] = useState([currentUser?.uid].filter(Boolean));
+    const { departments: allDepartments } = useRealtimeDepartments();
     const [selectedDepartments, setSelectedDepartments] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
-
-    useEffect(() => {
-        async function loadUsers() {
-            try {
-                const [users, departments] = await Promise.all([
-                    userService.getAllUsers(),
-                    departmentService.getDepartments()
-                ]);
-                setAllUsers(users);
-                setAllDepartments(departments);
-                // El creador se asigna automáticamente
-                setSelectedUsers([currentUser.uid]);
-            } catch (err) {
-                console.error("Error cargando usuarios", err);
-            }
-        }
-        loadUsers();
-    }, [currentUser]);
 
     function toggleUser(uid) {
         if (selectedUsers.includes(uid)) {

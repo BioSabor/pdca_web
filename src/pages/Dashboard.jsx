@@ -1,77 +1,70 @@
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useAuth } from "../context/AuthContext";
-import { projectService, actionService, statusService, userService, departmentService } from "../services/projectService";
+import { projectService } from "../services/projectService";
 import { Link, useNavigate } from "react-router-dom";
 import { Plus, Calendar, Users, AlertTriangle, Clock, CheckCircle, Archive, RotateCcw, Building2 } from "lucide-react";
+import useRealtimeProjects from "../hooks/useRealtimeProjects";
+import useRealtimeAllActions from "../hooks/useRealtimeAllActions";
+import useRealtimeStatuses from "../hooks/useRealtimeStatuses";
+import useRealtimeUsers from "../hooks/useRealtimeUsers";
+import useRealtimeDepartments from "../hooks/useRealtimeDepartments";
 
 export default function Dashboard() {
     const { currentUser } = useAuth();
     const navigate = useNavigate();
-    const [projects, setProjects] = useState([]);
-    const [projectStats, setProjectStats] = useState({});
-    const [globalStats, setGlobalStats] = useState(null);
-    const [allUsers, setAllUsers] = useState([]);
-    const [departments, setDepartments] = useState([]);
-    const [loading, setLoading] = useState(true);
     const [showArchived, setShowArchived] = useState(false);
 
+    // Suscripciones en tiempo real
+    const { projects, loading: loadingProjects } = useRealtimeProjects(currentUser?.uid);
+    const { allActions, loading: loadingActions } = useRealtimeAllActions();
+    const { statuses, loading: loadingStatuses } = useRealtimeStatuses();
+    const { users: allUsers, loading: loadingUsers } = useRealtimeUsers();
+    const { departments, loading: loadingDepts } = useRealtimeDepartments();
 
-    useEffect(() => {
-        async function loadData() {
-            if (!currentUser) return;
-            try {
-                const [data, statuses, users, depts] = await Promise.all([
-                    projectService.getUserProjects(currentUser.uid),
-                    statusService.getStatuses(),
-                    userService.getAllUsers(),
-                    departmentService.getDepartments()
-                ]);
-                setProjects(data);
-                setAllUsers(users);
-                setDepartments(depts);
+    const loading = loadingProjects || loadingActions || loadingStatuses || loadingUsers || loadingDepts;
 
-                // Cargar acciones de cada proyecto para estadísticas
-                const endStatuses = statuses.filter(s => s.type === "end").map(s => s.id);
+    // Calcular stats derivados de los datos reactivos
+    const endStatuses = useMemo(() => statuses.filter(s => s.type === "end").map(s => s.id), [statuses]);
 
-                const stats = {};
+    const { projectStats, globalStats } = useMemo(() => {
+        if (!currentUser || projects.length === 0) return { projectStats: {}, globalStats: { totalPending: 0, totalPriority: 0 } };
 
-                let totalPending = 0;
-                let totalPriority = 0;
+        const stats = {};
+        let totalPending = 0;
+        let totalPriority = 0;
 
+        // Agrupar acciones por projectId
+        const actionsByProject = {};
+        allActions.forEach(a => {
+            const pid = a.projectId;
+            if (!pid) return;
+            if (!actionsByProject[pid]) actionsByProject[pid] = [];
+            actionsByProject[pid].push(a);
+        });
 
-                for (const project of data) {
-                    const actions = await actionService.getActions(project.id);
-                    const myActions = actions.filter(a => a.assignedUsers?.includes(currentUser.uid));
-                    const myPending = myActions.filter(a => !endStatuses.includes(a.status));
-                    const myPriority = myActions.filter(a => a.priority && !endStatuses.includes(a.status));
+        for (const project of projects) {
+            const actions = actionsByProject[project.id] || [];
+            const myActions = actions.filter(a => a.assignedUsers?.includes(currentUser.uid));
+            const myPending = myActions.filter(a => !endStatuses.includes(a.status));
+            const myPriority = myActions.filter(a => a.priority && !endStatuses.includes(a.status));
 
-                    const completedOrDiscarded = actions.filter(a => endStatuses.includes(a.status)).length;
-                    const progress = actions.length > 0 ? Math.round((completedOrDiscarded / actions.length) * 100) : 0;
+            const completedOrDiscarded = actions.filter(a => endStatuses.includes(a.status)).length;
+            const progress = actions.length > 0 ? Math.round((completedOrDiscarded / actions.length) * 100) : 0;
 
-                    stats[project.id] = {
-                        total: actions.length,
-                        myPending: myPending.length,
-                        myPriority: myPriority.length,
-                        projectPending: actions.filter(a => !endStatuses.includes(a.status)).length,
-                        progress: progress
-                    };
+            stats[project.id] = {
+                total: actions.length,
+                myPending: myPending.length,
+                myPriority: myPriority.length,
+                projectPending: actions.filter(a => !endStatuses.includes(a.status)).length,
+                progress: progress
+            };
 
-                    totalPending += myPending.length;
-                    totalPriority += myPriority.length;
-
-
-                }
-
-                setProjectStats(stats);
-                setGlobalStats({ totalPending, totalPriority });
-            } catch (error) {
-                console.error("Error al cargar datos", error);
-            } finally {
-                setLoading(false);
-            }
+            totalPending += myPending.length;
+            totalPriority += myPriority.length;
         }
-        loadData();
-    }, [currentUser]);
+
+        return { projectStats: stats, globalStats: { totalPending, totalPriority } };
+    }, [projects, allActions, endStatuses, currentUser]);
 
     function getUserName(uid) {
         const user = allUsers.find(u => u.id === uid);
@@ -232,7 +225,6 @@ export default function Dashboard() {
                                                                 if (!confirm(`¿Estás seguro de que quieres ${showArchived ? 'desarchivar' : 'archivar'} este proyecto?`)) return;
                                                                 try {
                                                                     await projectService.toggleProjectArchive(project.id, !showArchived);
-                                                                    setProjects(prev => prev.map(p => p.id === project.id ? { ...p, archived: !showArchived } : p));
                                                                 } catch (error) {
                                                                     alert("Error al actualizar el proyecto");
                                                                 }
@@ -295,7 +287,6 @@ export default function Dashboard() {
                                                                     if (!confirm(`¿Estás seguro de que quieres ${showArchived ? 'desarchivar' : 'archivar'} este proyecto?`)) return;
                                                                     try {
                                                                         await projectService.toggleProjectArchive(project.id, !showArchived);
-                                                                        setProjects(prev => prev.map(p => p.id === project.id ? { ...p, archived: !showArchived } : p));
                                                                     } catch (error) {
                                                                         alert("Error al actualizar el proyecto");
                                                                     }

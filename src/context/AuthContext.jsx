@@ -1,12 +1,12 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState, useRef } from "react";
 import {
     createUserWithEmailAndPassword,
     signInWithEmailAndPassword,
     signOut,
     onAuthStateChanged
 } from "firebase/auth";
-import { auth, db } from "../firebase";
-import { doc, getDoc } from "firebase/firestore";
+import { auth } from "../firebase";
+import { subscriptions } from "../services/projectService";
 
 const AuthContext = createContext();
 
@@ -18,20 +18,33 @@ export function AuthProvider({ children }) {
     const [currentUser, setCurrentUser] = useState(null);
     const [initializing, setInitializing] = useState(true);
     const [authenticating, setAuthenticating] = useState(false);
+    const userProfileUnsub = useRef(null);
 
-    async function buildUserProfile(user) {
-        if (!user) return null;
-        try {
-            const docRef = doc(db, "users", user.uid);
-            const docSnap = await getDoc(docRef);
-            if (docSnap.exists()) {
-                return { ...user, ...docSnap.data() };
-            }
-            return { ...user, role: "user" };
-        } catch (error) {
-            console.warn("Could not fetch user profile from Firestore:", error.message);
-            return { ...user, role: "user" };
+    // Suscribirse al perfil del usuario en Firestore en tiempo real
+    function subscribeToUserProfile(authUser, onFirstLoad) {
+        // Limpiar suscripción anterior
+        if (userProfileUnsub.current) {
+            userProfileUnsub.current();
+            userProfileUnsub.current = null;
         }
+
+        if (!authUser) {
+            setCurrentUser(null);
+            return;
+        }
+
+        let firstSnapshot = true;
+        userProfileUnsub.current = subscriptions.subscribeToUser(authUser.uid, (profileData) => {
+            if (profileData) {
+                setCurrentUser({ ...authUser, ...profileData });
+            } else {
+                setCurrentUser({ ...authUser, role: "user" });
+            }
+            if (firstSnapshot) {
+                firstSnapshot = false;
+                onFirstLoad?.();
+            }
+        });
     }
 
     async function signup(email, password) {
@@ -47,8 +60,7 @@ export function AuthProvider({ children }) {
         try {
             setAuthenticating(true);
             const credential = await signInWithEmailAndPassword(auth, email, password);
-            const hydrated = await buildUserProfile(credential.user);
-            setCurrentUser(hydrated);
+            // La suscripción se activará via onAuthStateChanged
             return credential;
         } finally {
             setAuthenticating(false);
@@ -58,6 +70,11 @@ export function AuthProvider({ children }) {
     async function logout() {
         try {
             setAuthenticating(true);
+            // Limpiar suscripción al perfil
+            if (userProfileUnsub.current) {
+                userProfileUnsub.current();
+                userProfileUnsub.current = null;
+            }
             return await signOut(auth);
         } finally {
             setAuthenticating(false);
@@ -65,17 +82,27 @@ export function AuthProvider({ children }) {
     }
 
     useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, async (user) => {
+        const unsubscribe = onAuthStateChanged(auth, (user) => {
             if (user) {
-                const hydrated = await buildUserProfile(user);
-                setCurrentUser(hydrated);
+                // No marcar initializing=false hasta que el perfil se cargue
+                subscribeToUserProfile(user, () => setInitializing(false));
             } else {
+                // Limpiar suscripción al perfil
+                if (userProfileUnsub.current) {
+                    userProfileUnsub.current();
+                    userProfileUnsub.current = null;
+                }
                 setCurrentUser(null);
+                setInitializing(false);
             }
-            setInitializing(false);
         });
 
-        return unsubscribe;
+        return () => {
+            unsubscribe();
+            if (userProfileUnsub.current) {
+                userProfileUnsub.current();
+            }
+        };
     }, []);
 
     const value = {

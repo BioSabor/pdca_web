@@ -1,13 +1,13 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { db, secondaryAuth } from "../firebase";
-import { collection, getDocs, doc, updateDoc, deleteDoc, setDoc } from "firebase/firestore";
+import { doc, updateDoc, deleteDoc, setDoc, collection } from "firebase/firestore";
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, updatePassword } from "firebase/auth";
 import { Trash2, UserPlus, KeyRound, X, Pencil, Check } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import useRealtimeUsers from "../hooks/useRealtimeUsers";
 
 export default function UserManagement() {
-    const [users, setUsers] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const { users, loading } = useRealtimeUsers();
     const { currentUser } = useAuth();
 
     // Modal crear usuario
@@ -29,33 +29,10 @@ export default function UserManagement() {
     const [resetNewPwd, setResetNewPwd] = useState("");
     const [resetting, setResetting] = useState(false);
 
-    useEffect(() => {
-        fetchUsers();
-    }, []);
-
-    async function fetchUsers() {
-        try {
-            const querySnapshot = await getDocs(collection(db, "users"));
-            const usersList = querySnapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
-            setUsers(usersList);
-        } catch (error) {
-            console.error("Error al obtener usuarios:", error);
-        } finally {
-            setLoading(false);
-        }
-    }
-
     async function handleRoleChange(userId, newRole) {
         try {
             const userRef = doc(db, "users", userId);
             await updateDoc(userRef, { role: newRole });
-
-            setUsers(users.map(user =>
-                user.id === userId ? { ...user, role: newRole } : user
-            ));
         } catch (error) {
             console.error("Error al actualizar rol:", error);
             alert("Error al actualizar el rol");
@@ -71,10 +48,6 @@ export default function UserManagement() {
         try {
             const userRef = doc(db, "users", userId);
             await updateDoc(userRef, { displayName: editName });
-
-            setUsers(users.map(user =>
-                user.id === userId ? { ...user, displayName: editName } : user
-            ));
             setEditingId(null);
         } catch (error) {
             console.error("Error al actualizar nombre:", error);
@@ -87,7 +60,6 @@ export default function UserManagement() {
 
         try {
             await deleteDoc(doc(db, "users", userId));
-            setUsers(users.filter(user => user.id !== userId));
         } catch (error) {
             console.error("Error al eliminar usuario:", error);
             alert("Error al eliminar los datos del usuario");
@@ -156,15 +128,6 @@ export default function UserManagement() {
                 role: newUserRole,
                 createdAt: new Date()
             });
-
-            // Actualizar lista local
-            setUsers([...users, {
-                id: uid,
-                uid: uid,
-                email: email,
-                displayName: newUserName,
-                role: newUserRole
-            }]);
 
             // Limpiar y cerrar modal
             setNewUserName("");
