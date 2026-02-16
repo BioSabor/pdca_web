@@ -38,10 +38,10 @@ export default function TopNav() {
     return (
         <header className="sticky top-0 z-40 bg-white border-b border-gray-200 dark:bg-gray-900 dark:border-gray-800">
             <div className="px-4 md:px-8 h-16 flex items-center justify-between">
-                <div className="flex items-center gap-3">
+                <Link to="/" className="flex items-center gap-3">
                     <img src="/BIOSABOR_NOCLAIM-01.png" alt="Biosabor" className="h-9 object-contain" />
                     <span className="hidden sm:inline text-sm font-semibold text-gray-700 dark:text-gray-200">PDCA Manager</span>
-                </div>
+                </Link>
 
                 <nav className="hidden md:flex items-center gap-2">
                     {menuItems.map((item) => (

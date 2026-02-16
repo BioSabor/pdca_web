@@ -6,6 +6,8 @@ import { createPortal } from "react-dom";
 import { useAuth } from "../context/AuthContext";
 import GanttModal from "../components/GanttModal";
 
+const DEFAULT_VISIBLE_COLUMNS = ["proposedStartDate", "proposedEndDate", "startDate", "actualEndDate", "observations"];
+
 // Componente dropdown con checkboxes reutilizable
 function MultiCheckDropdown({ options, selected, onChange, placeholder }) {
     const [open, setOpen] = useState(false);
@@ -29,6 +31,32 @@ function MultiCheckDropdown({ options, selected, onChange, placeholder }) {
         }
         setOpen(!open);
     }
+
+    useEffect(() => {
+        if (!open || !dropRef.current || !btnRef.current) return;
+
+        const viewportPadding = 8;
+        const dropRect = dropRef.current.getBoundingClientRect();
+        const btnRect = btnRef.current.getBoundingClientRect();
+
+        let nextLeft = pos.left;
+        if (nextLeft + dropRect.width > window.innerWidth - viewportPadding) {
+            nextLeft = Math.max(viewportPadding, window.innerWidth - dropRect.width - viewportPadding);
+        }
+        if (nextLeft < viewportPadding) nextLeft = viewportPadding;
+
+        let nextTop = pos.top;
+        if (nextTop + dropRect.height > window.innerHeight - viewportPadding) {
+            const aboveTop = btnRect.top - dropRect.height - 2;
+            nextTop = aboveTop >= viewportPadding
+                ? aboveTop
+                : Math.max(viewportPadding, window.innerHeight - dropRect.height - viewportPadding);
+        }
+
+        if (nextLeft !== pos.left || nextTop !== pos.top) {
+            setPos({ top: nextTop, left: nextLeft });
+        }
+    }, [open, pos.left, pos.top]);
 
     function toggle(value) {
         if (selected.includes(value)) {
@@ -131,6 +159,9 @@ export default function ProjectDetail() {
     const [showFilters, setShowFilters] = useState(false);
     const [filtersLoaded, setFiltersLoaded] = useState(false);
 
+    const [visibleColumns, setVisibleColumns] = useState(DEFAULT_VISIBLE_COLUMNS);
+    const [columnsLoaded, setColumnsLoaded] = useState(false);
+
     // Cargar filtros guardados
     useEffect(() => {
         if (!currentUser || !id) return;
@@ -163,6 +194,31 @@ export default function ProjectDetail() {
         const data = { filterUsers, filterStatuses, filterDateFrom, filterDateTo };
         localStorage.setItem(key, JSON.stringify(data));
     }, [filterUsers, filterStatuses, filterDateFrom, filterDateTo, currentUser, id, filtersLoaded]);
+
+    useEffect(() => {
+        if (!currentUser || !id) return;
+        const key = `pdca_action_columns_${currentUser.uid}_${id}`;
+        const saved = localStorage.getItem(key);
+        if (saved) {
+            try {
+                const parsed = JSON.parse(saved);
+                if (Array.isArray(parsed)) {
+                    const sanitized = parsed.filter((value) => DEFAULT_VISIBLE_COLUMNS.includes(value));
+                    setVisibleColumns(sanitized);
+                }
+            } catch {
+                setVisibleColumns(DEFAULT_VISIBLE_COLUMNS);
+            }
+        }
+        setColumnsLoaded(true);
+        return () => setColumnsLoaded(false);
+    }, [currentUser, id]);
+
+    useEffect(() => {
+        if (!currentUser || !id || !columnsLoaded) return;
+        const key = `pdca_action_columns_${currentUser.uid}_${id}`;
+        localStorage.setItem(key, JSON.stringify(visibleColumns));
+    }, [currentUser, id, visibleColumns, columnsLoaded]);
 
     const [showNewRow, setShowNewRow] = useState(false);
     const [newAction, setNewAction] = useState({
@@ -379,6 +435,16 @@ export default function ProjectDetail() {
     const deptOptions = allDepartments.map(d => ({ value: d.id, label: d.name }));
     const statusOptions = statuses.map(s => ({ value: s.id, label: s.label, color: s.color }));
 
+    const columnOptions = [
+        { value: "proposedStartDate", label: "F. Inicio Propuesta" },
+        { value: "proposedEndDate", label: "F. Fin Propuesta" },
+        { value: "startDate", label: "F. Inicio Real" },
+        { value: "actualEndDate", label: "F. Fin Real" },
+        { value: "observations", label: "Observaciones" }
+    ];
+    const isColumnVisible = (key) => visibleColumns.includes(key);
+    const totalColumns = 7 + visibleColumns.length;
+
     // Calcular progreso
     const totalActions = actions.length;
     const completedOrDiscarded = actions.filter(a => {
@@ -508,6 +574,12 @@ export default function ProjectDetail() {
                             </button>
                         )}
                     </button>
+                    <MultiCheckDropdown
+                        options={columnOptions}
+                        selected={visibleColumns}
+                        onChange={setVisibleColumns}
+                        placeholder="Columnas"
+                    />
                 </div>
                 <button
                     onClick={() => setShowNewRow(true)}
@@ -575,12 +647,14 @@ export default function ProjectDetail() {
                                     placeholder="Seleccionar..."
                                 />
                             </div>
-                            <div>
-                                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">F. Fin Propuesta</label>
-                                <input type="date" value={newAction.proposedEndDate}
-                                    onChange={(e) => setNewAction({ ...newAction, proposedEndDate: e.target.value })}
-                                    className="border border-blue-300 dark:border-blue-700 rounded-lg text-xs px-2 py-1.5 w-full dark:bg-gray-900 dark:text-gray-100" />
-                            </div>
+                            {isColumnVisible("proposedEndDate") && (
+                                <div>
+                                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">F. Fin Propuesta</label>
+                                    <input type="date" value={newAction.proposedEndDate}
+                                        onChange={(e) => setNewAction({ ...newAction, proposedEndDate: e.target.value })}
+                                        className="border border-blue-300 dark:border-blue-700 rounded-lg text-xs px-2 py-1.5 w-full dark:bg-gray-900 dark:text-gray-100" />
+                                </div>
+                            )}
                             <div className="flex items-end">
                                 <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300 cursor-pointer">
                                     <input
@@ -604,12 +678,17 @@ export default function ProjectDetail() {
                     const statusCfg = getStatusConfig(action.status);
                     const isExpanded = expandedCardId === action.id;
                     // Prioridad: fecha fin real > fecha fin propuesta
-                    const cardDateRaw = action.actualEndDate || action.proposedEndDate || null;
+                    const cardDateRaw = (isColumnVisible("actualEndDate") && action.actualEndDate)
+                        || (isColumnVisible("proposedEndDate") && action.proposedEndDate)
+                        || null;
                     const dateDisplay = cardDateRaw
                         ? new Date(cardDateRaw + "T00:00:00").toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })
                         : null;
                     // En rojo si es fecha propuesta (sin real), vencida y no finalizada
-                    const cardDateOverdue = !action.actualEndDate && isOverdue(action.proposedEndDate) && statusCfg.type !== 'end';
+                    const cardDateOverdue = isColumnVisible("proposedEndDate")
+                        && !action.actualEndDate
+                        && isOverdue(action.proposedEndDate)
+                        && statusCfg.type !== 'end';
 
                     return (
                         <div key={action.id} className={`rounded-xl border transition-all ${action.priority ? 'border-red-300 dark:border-red-800 bg-white dark:bg-gray-800' : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800'}`}>
@@ -690,61 +769,71 @@ export default function ProjectDetail() {
                                         )}
                                     </div>
 
-                                    {/* Fechas en grid compacto */}
-                                    <div className="grid grid-cols-2 gap-2">
-                                        <div>
-                                            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-0.5">F. Inicio Propuesta</label>
-                                            <input type="date" defaultValue={action.proposedStartDate || ""}
-                                                onBlur={(e) => handleUpdateField(action.id, "proposedStartDate", e.target.value)}
-                                                className="w-full text-xs border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1.5 bg-gray-50 dark:bg-gray-900 text-gray-700 dark:text-gray-200" />
+                                    {(isColumnVisible("proposedStartDate") || isColumnVisible("proposedEndDate") || isColumnVisible("startDate") || isColumnVisible("actualEndDate")) && (
+                                        <div className="grid grid-cols-2 gap-2">
+                                            {isColumnVisible("proposedStartDate") && (
+                                                <div>
+                                                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-0.5">F. Inicio Propuesta</label>
+                                                    <input type="date" defaultValue={action.proposedStartDate || ""}
+                                                        onBlur={(e) => handleUpdateField(action.id, "proposedStartDate", e.target.value)}
+                                                        className="w-full text-xs border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1.5 bg-gray-50 dark:bg-gray-900 text-gray-700 dark:text-gray-200" />
+                                                </div>
+                                            )}
+                                            {isColumnVisible("proposedEndDate") && (
+                                                <div>
+                                                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-0.5">F. Fin Propuesta</label>
+                                                    <input type="date" defaultValue={action.proposedEndDate || ""}
+                                                        onBlur={(e) => handleUpdateField(action.id, "proposedEndDate", e.target.value)}
+                                                        className={`w-full text-xs border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1.5 bg-gray-50 dark:bg-gray-900 ${isOverdue(action.proposedEndDate) && statusCfg.type !== 'end' ? 'text-red-600 font-semibold' : 'text-gray-700 dark:text-gray-200'}`} />
+                                                </div>
+                                            )}
+                                            {isColumnVisible("startDate") && (
+                                                <div>
+                                                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-0.5">F. Inicio Real</label>
+                                                    <input type="date" defaultValue={action.startDate || ""} key={action.startDate || "m-empty-s"}
+                                                        onBlur={(e) => handleUpdateField(action.id, "startDate", e.target.value)}
+                                                        className="w-full text-xs border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1.5 bg-gray-50 dark:bg-gray-900 text-gray-700 dark:text-gray-200" />
+                                                </div>
+                                            )}
+                                            {isColumnVisible("actualEndDate") && (
+                                                <div>
+                                                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-0.5">F. Fin Real</label>
+                                                    <input type="date" defaultValue={action.actualEndDate || ""} key={action.actualEndDate || "m-empty-e"}
+                                                        onBlur={(e) => handleUpdateField(action.id, "actualEndDate", e.target.value)}
+                                                        className="w-full text-xs border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1.5 bg-gray-50 dark:bg-gray-900 text-gray-700 dark:text-gray-200" />
+                                                </div>
+                                            )}
                                         </div>
-                                        <div>
-                                            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-0.5">F. Fin Propuesta</label>
-                                            <input type="date" defaultValue={action.proposedEndDate || ""}
-                                                onBlur={(e) => handleUpdateField(action.id, "proposedEndDate", e.target.value)}
-                                                className={`w-full text-xs border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1.5 bg-gray-50 dark:bg-gray-900 ${isOverdue(action.proposedEndDate) && statusCfg.type !== 'end' ? 'text-red-600 font-semibold' : 'text-gray-700 dark:text-gray-200'}`} />
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-0.5">F. Inicio Real</label>
-                                            <input type="date" defaultValue={action.startDate || ""} key={action.startDate || "m-empty-s"}
-                                                onBlur={(e) => handleUpdateField(action.id, "startDate", e.target.value)}
-                                                className="w-full text-xs border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1.5 bg-gray-50 dark:bg-gray-900 text-gray-700 dark:text-gray-200" />
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-0.5">F. Fin Real</label>
-                                            <input type="date" defaultValue={action.actualEndDate || ""} key={action.actualEndDate || "m-empty-e"}
-                                                onBlur={(e) => handleUpdateField(action.id, "actualEndDate", e.target.value)}
-                                                className="w-full text-xs border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1.5 bg-gray-50 dark:bg-gray-900 text-gray-700 dark:text-gray-200" />
-                                        </div>
-                                    </div>
+                                    )}
 
-                                    {/* Observaciones */}
-                                    <div>
-                                        <label className="block text-xs text-gray-500 dark:text-gray-400 mb-0.5">Observaciones</label>
-                                        <textarea
-                                            defaultValue={action.observations || ""}
-                                            onBlur={(e) => {
-                                                if (e.target.value !== (action.observations || ""))
-                                                    handleUpdateField(action.id, "observations", e.target.value);
-                                            }}
-                                            onInput={(e) => {
-                                                e.target.style.height = 'auto';
-                                                e.target.style.height = Math.min(e.target.scrollHeight, 160) + 'px';
-                                            }}
-                                            ref={(el) => {
-                                                if (el) {
-                                                    setTimeout(() => {
-                                                        el.style.height = 'auto';
-                                                        el.style.height = Math.min(el.scrollHeight, 160) + 'px';
-                                                    }, 0);
-                                                }
-                                            }}
-                                            rows={1}
-                                            placeholder="Sin observaciones"
-                                            className="w-full text-sm border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 bg-gray-50 dark:bg-gray-900 text-gray-700 dark:text-gray-200 resize-none overflow-y-auto"
-                                            style={{ maxHeight: '160px' }}
-                                        />
-                                    </div>
+                                    {isColumnVisible("observations") && (
+                                        <div>
+                                            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-0.5">Observaciones</label>
+                                            <textarea
+                                                defaultValue={action.observations || ""}
+                                                onBlur={(e) => {
+                                                    if (e.target.value !== (action.observations || ""))
+                                                        handleUpdateField(action.id, "observations", e.target.value);
+                                                }}
+                                                onInput={(e) => {
+                                                    e.target.style.height = 'auto';
+                                                    e.target.style.height = Math.min(e.target.scrollHeight, 160) + 'px';
+                                                }}
+                                                ref={(el) => {
+                                                    if (el) {
+                                                        setTimeout(() => {
+                                                            el.style.height = 'auto';
+                                                            el.style.height = Math.min(el.scrollHeight, 160) + 'px';
+                                                        }, 0);
+                                                    }
+                                                }}
+                                                rows={1}
+                                                placeholder="Sin observaciones"
+                                                className="w-full text-sm border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 bg-gray-50 dark:bg-gray-900 text-gray-700 dark:text-gray-200 resize-none overflow-y-auto"
+                                                style={{ maxHeight: '160px' }}
+                                            />
+                                        </div>
+                                    )}
 
                                     {/* Prioridad + Eliminar */}
                                     <div className="flex items-center justify-between pt-1">
@@ -786,11 +875,21 @@ export default function ProjectDetail() {
                             <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase min-w-[560px] w-full">Acción</th>
                             <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase min-w-[140px]">Responsable</th>
                             <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase w-32">Estado</th>
-                            <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase w-16 leading-3">F. Inicio<br />Propuesta</th>
-                            <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase w-16 leading-3">F. Fin<br />Propuesta</th>
-                            <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase w-16 leading-3">F. Inicio<br />Real</th>
-                            <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase w-16 leading-3">F. Fin<br />Real</th>
-                            <th className="px-1 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase w-10" title="Observaciones"><Eye className="w-3.5 h-3.5 mx-auto" /></th>
+                            {isColumnVisible("proposedStartDate") && (
+                                <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase w-16 leading-3">F. Inicio<br />Propuesta</th>
+                            )}
+                            {isColumnVisible("proposedEndDate") && (
+                                <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase w-16 leading-3">F. Fin<br />Propuesta</th>
+                            )}
+                            {isColumnVisible("startDate") && (
+                                <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase w-16 leading-3">F. Inicio<br />Real</th>
+                            )}
+                            {isColumnVisible("actualEndDate") && (
+                                <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase w-16 leading-3">F. Fin<br />Real</th>
+                            )}
+                            {isColumnVisible("observations") && (
+                                <th className="px-1 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase w-10" title="Observaciones"><Eye className="w-3.5 h-3.5 mx-auto" /></th>
+                            )}
                             <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase w-10"></th>
                         </tr>
                     </thead>
@@ -865,52 +964,62 @@ export default function ProjectDetail() {
                                                 ))}
                                             </select>
                                         </td>
-                                        <td className="px-1 py-2">
-                                            <input
-                                                type="date"
-                                                defaultValue={action.proposedStartDate || ""}
-                                                onBlur={(e) => handleUpdateField(action.id, "proposedStartDate", e.target.value)}
-                                                className="bg-transparent border-0 focus:ring-1 focus:ring-blue-400 rounded text-xs text-gray-700 dark:text-gray-200 w-full p-0"
-                                            />
-                                        </td>
-                                        <td className="px-1 py-2">
-                                            <input
-                                                type="date"
-                                                defaultValue={action.proposedEndDate || ""}
-                                                onBlur={(e) => handleUpdateField(action.id, "proposedEndDate", e.target.value)}
-                                                className={`bg-transparent border-0 focus:ring-1 focus:ring-blue-400 rounded text-xs w-full p-0 ${isOverdue(action.proposedEndDate) && statusCfg.type !== 'end'
-                                                    ? 'text-red-600 font-semibold'
-                                                    : 'text-gray-700 dark:text-gray-200'
-                                                    }`}
-                                            />
-                                        </td>
-                                        <td className="px-1 py-2">
-                                            <input
-                                                type="date"
-                                                defaultValue={action.startDate || ""}
-                                                key={action.startDate || "empty-start"}
-                                                onBlur={(e) => handleUpdateField(action.id, "startDate", e.target.value)}
-                                                className="bg-transparent border-0 focus:ring-1 focus:ring-blue-400 rounded text-xs text-gray-700 dark:text-gray-200 w-full p-0"
-                                            />
-                                        </td>
-                                        <td className="px-1 py-2">
-                                            <input
-                                                type="date"
-                                                defaultValue={action.actualEndDate || ""}
-                                                key={action.actualEndDate || "empty-end"}
-                                                onBlur={(e) => handleUpdateField(action.id, "actualEndDate", e.target.value)}
-                                                className="bg-transparent border-0 focus:ring-1 focus:ring-blue-400 rounded text-xs text-gray-700 dark:text-gray-200 w-full p-0"
-                                            />
-                                        </td>
-                                        <td className="px-1 py-2 text-center">
-                                            <button
-                                                onClick={() => setExpandedObsActionId(expandedObsActionId === action.id ? null : action.id)}
-                                                className={`p-1 rounded transition ${(action.observations || "").trim() ? 'text-blue-500 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/30' : 'text-gray-300 dark:text-gray-600 hover:text-gray-500 dark:hover:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'}`}
-                                                title={expandedObsActionId === action.id ? "Ocultar observaciones" : "Ver observaciones"}
-                                            >
-                                                {(action.observations || "").trim() ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-                                            </button>
-                                        </td>
+                                        {isColumnVisible("proposedStartDate") && (
+                                            <td className="px-1 py-2">
+                                                <input
+                                                    type="date"
+                                                    defaultValue={action.proposedStartDate || ""}
+                                                    onBlur={(e) => handleUpdateField(action.id, "proposedStartDate", e.target.value)}
+                                                    className="bg-transparent border-0 focus:ring-1 focus:ring-blue-400 rounded text-xs text-gray-700 dark:text-gray-200 w-full p-0"
+                                                />
+                                            </td>
+                                        )}
+                                        {isColumnVisible("proposedEndDate") && (
+                                            <td className="px-1 py-2">
+                                                <input
+                                                    type="date"
+                                                    defaultValue={action.proposedEndDate || ""}
+                                                    onBlur={(e) => handleUpdateField(action.id, "proposedEndDate", e.target.value)}
+                                                    className={`bg-transparent border-0 focus:ring-1 focus:ring-blue-400 rounded text-xs w-full p-0 ${isOverdue(action.proposedEndDate) && statusCfg.type !== 'end'
+                                                        ? 'text-red-600 font-semibold'
+                                                        : 'text-gray-700 dark:text-gray-200'
+                                                        }`}
+                                                />
+                                            </td>
+                                        )}
+                                        {isColumnVisible("startDate") && (
+                                            <td className="px-1 py-2">
+                                                <input
+                                                    type="date"
+                                                    defaultValue={action.startDate || ""}
+                                                    key={action.startDate || "empty-start"}
+                                                    onBlur={(e) => handleUpdateField(action.id, "startDate", e.target.value)}
+                                                    className="bg-transparent border-0 focus:ring-1 focus:ring-blue-400 rounded text-xs text-gray-700 dark:text-gray-200 w-full p-0"
+                                                />
+                                            </td>
+                                        )}
+                                        {isColumnVisible("actualEndDate") && (
+                                            <td className="px-1 py-2">
+                                                <input
+                                                    type="date"
+                                                    defaultValue={action.actualEndDate || ""}
+                                                    key={action.actualEndDate || "empty-end"}
+                                                    onBlur={(e) => handleUpdateField(action.id, "actualEndDate", e.target.value)}
+                                                    className="bg-transparent border-0 focus:ring-1 focus:ring-blue-400 rounded text-xs text-gray-700 dark:text-gray-200 w-full p-0"
+                                                />
+                                            </td>
+                                        )}
+                                        {isColumnVisible("observations") && (
+                                            <td className="px-1 py-2 text-center">
+                                                <button
+                                                    onClick={() => setExpandedObsActionId(expandedObsActionId === action.id ? null : action.id)}
+                                                    className={`p-1 rounded transition ${(action.observations || "").trim() ? 'text-blue-500 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/30' : 'text-gray-300 dark:text-gray-600 hover:text-gray-500 dark:hover:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'}`}
+                                                    title={expandedObsActionId === action.id ? "Ocultar observaciones" : "Ver observaciones"}
+                                                >
+                                                    {(action.observations || "").trim() ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                                                </button>
+                                            </td>
+                                        )}
                                         <td className="px-3 py-2">
                                             <button onClick={() => handleDeleteAction(action.id)} className="text-red-400 hover:text-red-600">
                                                 <Trash2 className="w-4 h-4" />
@@ -918,9 +1027,9 @@ export default function ProjectDetail() {
                                         </td>
                                     </tr>
                                     {
-                                        expandedObsActionId === action.id && (
+                                        isColumnVisible("observations") && expandedObsActionId === action.id && (
                                             <tr className="bg-blue-50/30 dark:bg-blue-900/10">
-                                                <td colSpan={12} className="px-6 py-3">
+                                                <td colSpan={totalColumns} className="px-6 py-3">
                                                     <div className="flex items-start gap-2">
                                                         <label className="text-xs font-medium text-gray-500 dark:text-gray-400 pt-1.5 flex-shrink-0">Observaciones:</label>
                                                         <textarea
@@ -983,34 +1092,44 @@ export default function ProjectDetail() {
                                         {statuses.map(s => (<option key={s.id} value={s.id}>{s.label}</option>))}
                                     </select>
                                 </td>
-                                <td className="px-1 py-2">
-                                    <input type="date" value={newAction.proposedStartDate}
-                                        onChange={(e) => setNewAction({ ...newAction, proposedStartDate: e.target.value })}
-                                        className="border border-blue-300 dark:border-blue-700 rounded text-xs px-1 py-0.5 w-full dark:bg-gray-900 dark:text-gray-100" />
-                                </td>
-                                <td className="px-1 py-2">
-                                    <input type="date" value={newAction.proposedEndDate}
-                                        onChange={(e) => setNewAction({ ...newAction, proposedEndDate: e.target.value })}
-                                        className="border border-blue-300 dark:border-blue-700 rounded text-xs px-1 py-0.5 w-full dark:bg-gray-900 dark:text-gray-100" />
-                                </td>
-                                <td className="px-1 py-2">
-                                    <input type="date" value={newAction.startDate}
-                                        onChange={(e) => setNewAction({ ...newAction, startDate: e.target.value })}
-                                        className="border border-blue-300 dark:border-blue-700 rounded text-xs px-1 py-0.5 w-full dark:bg-gray-900 dark:text-gray-100" />
-                                </td>
-                                <td className="px-1 py-2">
-                                    <input type="date" value={newAction.actualEndDate}
-                                        onChange={(e) => setNewAction({ ...newAction, actualEndDate: e.target.value })}
-                                        className="border border-blue-300 dark:border-blue-700 rounded text-xs px-1 py-0.5 w-full dark:bg-gray-900 dark:text-gray-100" />
-                                </td>
-                                <td className="px-3 py-2">
-                                    <textarea value={newAction.observations}
-                                        onChange={(e) => setNewAction({ ...newAction, observations: e.target.value })}
-                                        onInput={(e) => autoResize(e.target)}
-                                        placeholder="Observaciones..."
-                                        rows={1}
-                                        className="w-full border border-blue-300 dark:border-blue-700 rounded px-1 py-0.5 text-sm resize-none overflow-hidden dark:bg-gray-900 dark:text-gray-100" />
-                                </td>
+                                {isColumnVisible("proposedStartDate") && (
+                                    <td className="px-1 py-2">
+                                        <input type="date" value={newAction.proposedStartDate}
+                                            onChange={(e) => setNewAction({ ...newAction, proposedStartDate: e.target.value })}
+                                            className="border border-blue-300 dark:border-blue-700 rounded text-xs px-1 py-0.5 w-full dark:bg-gray-900 dark:text-gray-100" />
+                                    </td>
+                                )}
+                                {isColumnVisible("proposedEndDate") && (
+                                    <td className="px-1 py-2">
+                                        <input type="date" value={newAction.proposedEndDate}
+                                            onChange={(e) => setNewAction({ ...newAction, proposedEndDate: e.target.value })}
+                                            className="border border-blue-300 dark:border-blue-700 rounded text-xs px-1 py-0.5 w-full dark:bg-gray-900 dark:text-gray-100" />
+                                    </td>
+                                )}
+                                {isColumnVisible("startDate") && (
+                                    <td className="px-1 py-2">
+                                        <input type="date" value={newAction.startDate}
+                                            onChange={(e) => setNewAction({ ...newAction, startDate: e.target.value })}
+                                            className="border border-blue-300 dark:border-blue-700 rounded text-xs px-1 py-0.5 w-full dark:bg-gray-900 dark:text-gray-100" />
+                                    </td>
+                                )}
+                                {isColumnVisible("actualEndDate") && (
+                                    <td className="px-1 py-2">
+                                        <input type="date" value={newAction.actualEndDate}
+                                            onChange={(e) => setNewAction({ ...newAction, actualEndDate: e.target.value })}
+                                            className="border border-blue-300 dark:border-blue-700 rounded text-xs px-1 py-0.5 w-full dark:bg-gray-900 dark:text-gray-100" />
+                                    </td>
+                                )}
+                                {isColumnVisible("observations") && (
+                                    <td className="px-3 py-2">
+                                        <textarea value={newAction.observations}
+                                            onChange={(e) => setNewAction({ ...newAction, observations: e.target.value })}
+                                            onInput={(e) => autoResize(e.target)}
+                                            placeholder="Observaciones..."
+                                            rows={1}
+                                            className="w-full border border-blue-300 dark:border-blue-700 rounded px-1 py-0.5 text-sm resize-none overflow-hidden dark:bg-gray-900 dark:text-gray-100" />
+                                    </td>
+                                )}
                                 <td className="px-3 py-2">
                                     <div className="flex gap-2">
                                         <button onClick={handleAddAction} className="px-3 py-1.5 bg-green-500 text-white rounded-lg hover:bg-green-600 text-sm font-medium transition">✓ Añadir</button>
@@ -1022,7 +1141,7 @@ export default function ProjectDetail() {
 
                         {filteredActions.length === 0 && !showNewRow && (
                             <tr>
-                                <td colSpan="12" className="text-center py-8 text-gray-400 dark:text-gray-500">
+                                <td colSpan={totalColumns} className="text-center py-8 text-gray-400 dark:text-gray-500">
                                     {hasActiveFilters ? "No hay acciones que coincidan con los filtros." : "No hay acciones aún. Haz clic en \"Nueva Acción\" para empezar."}
                                 </td>
                             </tr>
