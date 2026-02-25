@@ -182,6 +182,7 @@ export const actionService = {
                 transaction.set(newActionRef, {
                     ...actionData,
                     seqId: nextId,
+                    orden: actionData.orden !== undefined ? actionData.orden : nextId,
                     createdAt: serverTimestamp()
                 });
 

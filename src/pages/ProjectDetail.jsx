@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { projectService, actionService, statusService } from "../services/projectService";
-import { ArrowLeft, Plus, Trash2, Filter, X, ChevronDown, Pencil, Trash, Building2, Eye, EyeOff, ListTodo } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Filter, X, ChevronDown, ChevronUp, Pencil, Trash, Building2, Eye, EyeOff, ListTodo, FileDown, Paperclip } from "lucide-react";
 import { createPortal } from "react-dom";
 import { useAuth } from "../context/AuthContext";
 import GanttModal from "../components/GanttModal";
@@ -10,8 +10,13 @@ import useRealtimeActions from "../hooks/useRealtimeActions";
 import useRealtimeStatuses from "../hooks/useRealtimeStatuses";
 import useRealtimeUsers from "../hooks/useRealtimeUsers";
 import useRealtimeDepartments from "../hooks/useRealtimeDepartments";
+import ActionAttachments from "../components/ActionAttachments";
+import AttachmentToggleButton from "../components/AttachmentToggleButton";
+import { deleteAllAttachments } from "../services/attachmentService";
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
 
-const DEFAULT_VISIBLE_COLUMNS = ["proposedStartDate", "proposedEndDate", "startDate", "actualEndDate", "observations", "subactions"];
+const DEFAULT_VISIBLE_COLUMNS = ["proposedStartDate", "proposedEndDate", "startDate", "actualEndDate", "observations", "subactions", "attachments"];
 
 // Componente dropdown con checkboxes reutilizable
 function MultiCheckDropdown({ options, selected, onChange, placeholder }) {
@@ -169,6 +174,10 @@ export default function ProjectDetail() {
     const [visibleColumns, setVisibleColumns] = useState(DEFAULT_VISIBLE_COLUMNS);
     const [columnsLoaded, setColumnsLoaded] = useState(false);
 
+    const [sortColumn, setSortColumn] = useState(null);
+    const [sortDirection, setSortDirection] = useState("asc");
+    const [sortLoaded, setSortLoaded] = useState(false);
+
     // Cargar filtros guardados
     useEffect(() => {
         if (!currentUser || !id) return;
@@ -211,7 +220,9 @@ export default function ProjectDetail() {
                 const parsed = JSON.parse(saved);
                 if (Array.isArray(parsed)) {
                     const sanitized = parsed.filter((value) => DEFAULT_VISIBLE_COLUMNS.includes(value));
-                    setVisibleColumns(sanitized);
+                    // Auto-add new columns that didn't exist in saved data
+                    const newCols = DEFAULT_VISIBLE_COLUMNS.filter(c => !parsed.includes(c));
+                    setVisibleColumns([...sanitized, ...newCols]);
                 }
             } catch {
                 setVisibleColumns(DEFAULT_VISIBLE_COLUMNS);
@@ -226,6 +237,29 @@ export default function ProjectDetail() {
         const key = `pdca_action_columns_${currentUser.uid}_${id}`;
         localStorage.setItem(key, JSON.stringify(visibleColumns));
     }, [currentUser, id, visibleColumns, columnsLoaded]);
+
+    // Cargar orden de columna guardado
+    useEffect(() => {
+        if (!currentUser || !id) return;
+        const key = `pdca_sort_${currentUser.uid}_${id}`;
+        const saved = localStorage.getItem(key);
+        if (saved) {
+            try {
+                const parsed = JSON.parse(saved);
+                if (parsed.sortColumn) setSortColumn(parsed.sortColumn);
+                if (parsed.sortDirection) setSortDirection(parsed.sortDirection);
+            } catch { /* ignore */ }
+        }
+        setSortLoaded(true);
+        return () => setSortLoaded(false);
+    }, [currentUser, id]);
+
+    // Guardar orden de columna
+    useEffect(() => {
+        if (!currentUser || !id || !sortLoaded) return;
+        const key = `pdca_sort_${currentUser.uid}_${id}`;
+        localStorage.setItem(key, JSON.stringify({ sortColumn, sortDirection }));
+    }, [sortColumn, sortDirection, currentUser, id, sortLoaded]);
 
     const [showNewRow, setShowNewRow] = useState(false);
     const [newAction, setNewAction] = useState({
@@ -247,6 +281,7 @@ export default function ProjectDetail() {
     const [showGantt, setShowGantt] = useState(false);
     const [expandedObsActionId, setExpandedObsActionId] = useState(null);
     const [expandedSubactionsActionId, setExpandedSubactionsActionId] = useState(null);
+    const [expandedAttachmentsActionId, setExpandedAttachmentsActionId] = useState(null);
     const [subactionDrafts, setSubactionDrafts] = useState({});
 
     function getUserName(uid) {
@@ -280,6 +315,16 @@ export default function ProjectDetail() {
         el.style.height = el.scrollHeight + 'px';
     }
 
+    function formatDateDisplay(dateStr) {
+        if (!dateStr) return "";
+        return new Date(`${dateStr}T00:00:00`).toLocaleDateString("es-ES");
+    }
+
+    function formatCreatedAt(createdAt) {
+        if (!createdAt?.seconds) return "";
+        return new Date(createdAt.seconds * 1000).toLocaleDateString("es-ES");
+    }
+
     const today = new Date().toISOString().split('T')[0];
     function isOverdue(dateStr) {
         return dateStr && dateStr < today;
@@ -288,12 +333,55 @@ export default function ProjectDetail() {
     const projectUsers = allUsers.filter(u => project?.assignedUsers?.includes(u.id));
     const projectDepartments = allDepartments.filter(d => project?.assignedDepartments?.includes(d.id));
 
+    function handleSort(column) {
+        if (sortColumn === column) {
+            if (sortDirection === "asc") setSortDirection("desc");
+            else { setSortColumn(null); setSortDirection("asc"); }
+        } else {
+            setSortColumn(column);
+            setSortDirection("asc");
+        }
+    }
+
+    function SortIcon({ column }) {
+        if (sortColumn !== column) return <ChevronDown className="w-3 h-3 opacity-0 group-hover:opacity-40 inline ml-0.5" />;
+        return sortDirection === "asc"
+            ? <ChevronUp className="w-3 h-3 inline ml-0.5 text-blue-500" />
+            : <ChevronDown className="w-3 h-3 inline ml-0.5 text-blue-500" />;
+    }
+
     const filteredActions = actions.filter(a => {
         if (filterUsers.length > 0 && (!a.assignedUsers || !a.assignedUsers.some(u => filterUsers.includes(u)))) return false;
         if (filterStatuses.length > 0 && !filterStatuses.includes(a.status)) return false;
         if (filterDateFrom && a.startDate && a.startDate < filterDateFrom) return false;
         if (filterDateTo && a.startDate && a.startDate > filterDateTo) return false;
         return true;
+    });
+
+    const sortedActions = [...filteredActions].sort((a, b) => {
+        if (!sortColumn) return 0;
+        const dir = sortDirection === "asc" ? 1 : -1;
+        let va, vb;
+        switch (sortColumn) {
+            case "seqId": va = a.seqId || 0; vb = b.seqId || 0; return (va - vb) * dir;
+            case "orden": va = a.orden ?? Infinity; vb = b.orden ?? Infinity; return (va - vb) * dir;
+            case "priority": va = a.priority ? 1 : 0; vb = b.priority ? 1 : 0; return (vb - va) * dir;
+            case "createdAt": va = a.createdAt?.seconds || 0; vb = b.createdAt?.seconds || 0; return (va - vb) * dir;
+            case "action": va = (a.action || "").toLowerCase(); vb = (b.action || "").toLowerCase(); return va.localeCompare(vb) * dir;
+            case "assignedUsers":
+                va = (a.assignedUsers || []).map(uid => getUserName(uid)).join(", ").toLowerCase();
+                vb = (b.assignedUsers || []).map(uid => getUserName(uid)).join(", ").toLowerCase();
+                return va.localeCompare(vb) * dir;
+            case "status":
+                va = getStatusConfig(a.status)?.label || "";
+                vb = getStatusConfig(b.status)?.label || "";
+                return va.localeCompare(vb) * dir;
+            case "proposedStartDate": va = a.proposedStartDate || ""; vb = b.proposedStartDate || ""; return va.localeCompare(vb) * dir;
+            case "proposedEndDate": va = a.proposedEndDate || ""; vb = b.proposedEndDate || ""; return va.localeCompare(vb) * dir;
+            case "startDate": va = a.startDate || ""; vb = b.startDate || ""; return va.localeCompare(vb) * dir;
+            case "actualEndDate": va = a.actualEndDate || ""; vb = b.actualEndDate || ""; return va.localeCompare(vb) * dir;
+            default: return 0;
+        }
     });
 
     async function handleAddAction() {
@@ -345,6 +433,7 @@ export default function ProjectDetail() {
     async function handleDeleteAction(actionId) {
         if (!confirm("¿Eliminar esta acción?")) return;
         try {
+            await deleteAllAttachments(id, actionId);
             await actionService.deleteAction(id, actionId);
         } catch (error) {
             alert("Error al eliminar acción");
@@ -437,8 +526,9 @@ export default function ProjectDetail() {
     async function handleDeleteProject() {
         if (!confirm("¿Estás seguro de que quieres eliminar este proyecto y todas sus acciones? Esta acción no se puede deshacer.")) return;
         try {
-            // Eliminar todas las acciones primero
+            // Eliminar adjuntos y acciones primero
             for (const action of actions) {
+                await deleteAllAttachments(id, action.id);
                 await actionService.deleteAction(id, action.id);
             }
             await projectService.deleteProject(id);
@@ -464,10 +554,11 @@ export default function ProjectDetail() {
         { value: "startDate", label: "F. Inicio Real" },
         { value: "actualEndDate", label: "F. Fin Real" },
         { value: "observations", label: "Observaciones" },
-        { value: "subactions", label: "Subacciones" }
+        { value: "subactions", label: "Subacciones" },
+        { value: "attachments", label: "Adjuntos" }
     ];
     const isColumnVisible = (key) => visibleColumns.includes(key);
-    const totalColumns = 7 + visibleColumns.length;
+    const totalColumns = 8 + visibleColumns.filter(c => c !== 'attachments').length + (isColumnVisible('attachments') ? 1 : 0);
 
     // Calcular progreso
     const totalActions = actions.length;
@@ -478,6 +569,71 @@ export default function ProjectDetail() {
     const progressPercentage = totalActions > 0 ? Math.round((completedOrDiscarded / totalActions) * 100) : 0;
 
 
+
+    function handleExportPdf() {
+        const columns = [
+            { key: "seq", label: "#" },
+            { key: "orden", label: "Orden" },
+            { key: "priority", label: "Prioritaria" },
+            { key: "date", label: "Fecha" },
+            { key: "action", label: "Accion" },
+            { key: "assignedUsers", label: "Responsable" },
+            { key: "status", label: "Estado" }
+        ];
+
+        if (isColumnVisible("proposedStartDate")) columns.push({ key: "proposedStartDate", label: "F. Inicio Propuesta" });
+        if (isColumnVisible("proposedEndDate")) columns.push({ key: "proposedEndDate", label: "F. Fin Propuesta" });
+        if (isColumnVisible("startDate")) columns.push({ key: "startDate", label: "F. Inicio Real" });
+        if (isColumnVisible("actualEndDate")) columns.push({ key: "actualEndDate", label: "F. Fin Real" });
+        if (isColumnVisible("observations")) columns.push({ key: "observations", label: "Observaciones" });
+        if (isColumnVisible("subactions")) columns.push({ key: "subactions", label: "Subacciones" });
+
+        if (filteredActions.length === 0) {
+            alert("No hay acciones visibles para exportar.");
+            return;
+        }
+
+        const rows = sortedActions.map((action, index) => {
+            const statusCfg = getStatusConfig(action.status);
+            return {
+                seq: action.seqId || index + 1,
+                orden: action.orden ?? "",
+                priority: action.priority ? "Si" : "No",
+                date: formatCreatedAt(action.createdAt),
+                action: action.action || "",
+                assignedUsers: (action.assignedUsers || []).length > 0
+                    ? action.assignedUsers.map(uid => getUserName(uid)).join(", ")
+                    : "Sin asignar",
+                status: statusCfg.label || action.status || "",
+                proposedStartDate: formatDateDisplay(action.proposedStartDate),
+                proposedEndDate: formatDateDisplay(action.proposedEndDate),
+                startDate: formatDateDisplay(action.startDate),
+                actualEndDate: formatDateDisplay(action.actualEndDate),
+                observations: action.observations || "",
+                subactions: (action.subactions || []).map(sub => sub.title).join(" | ")
+            };
+        });
+
+        const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
+        const title = `Proyecto: ${project.title}`;
+        const todayLabel = new Date().toLocaleDateString("es-ES");
+
+        doc.setFontSize(14);
+        doc.text(title, 40, 40);
+        doc.setFontSize(10);
+        doc.text(`Fecha: ${todayLabel}`, 40, 58);
+
+        autoTable(doc, {
+            startY: 80,
+            head: [columns.map(c => c.label)],
+            body: rows.map(row => columns.map(c => row[c.key] ?? "")),
+            styles: { fontSize: 8, cellPadding: 4, overflow: "linebreak" },
+            headStyles: { fillColor: [243, 244, 246], textColor: 31 },
+            theme: "grid"
+        });
+
+        doc.save(`acciones_${project.title.replace(/\s+/g, "_")}.pdf`);
+    }
 
     return (
         <div>
@@ -605,13 +761,23 @@ export default function ProjectDetail() {
                         placeholder="Columnas"
                     />
                 </div>
-                <button
-                    onClick={() => setShowNewRow(true)}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm"
-                >
-                    <Plus className="w-4 h-4" />
-                    Nueva Acción
-                </button>
+                <div className="flex gap-2">
+                    <button
+                        onClick={handleExportPdf}
+                        disabled={filteredActions.length === 0}
+                        className="flex items-center gap-2 px-3 py-2 border border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        <FileDown className="w-4 h-4" />
+                        Exportar PDF
+                    </button>
+                    <button
+                        onClick={() => setShowNewRow(true)}
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm"
+                    >
+                        <Plus className="w-4 h-4" />
+                        Nueva Acción
+                    </button>
+                </div>
             </div>
 
             {/* Filtros multi-select */}
@@ -698,7 +864,7 @@ export default function ProjectDetail() {
                     </div>
                 )}
 
-                {filteredActions.map((action) => {
+                {sortedActions.map((action) => {
                     const statusCfg = getStatusConfig(action.status);
                     const isExpanded = expandedCardId === action.id;
                     // Prioridad: fecha fin real > fecha fin propuesta
@@ -949,6 +1115,20 @@ export default function ProjectDetail() {
                                         </div>
                                     )}
 
+                                    {/* Adjuntos - vista móvil */}
+                                    {isColumnVisible("attachments") && (
+                                        <div className="pt-1">
+                                            <div className="text-xs font-semibold text-gray-600 dark:text-gray-300 mb-2 flex items-center gap-1.5">
+                                                <Paperclip className="w-3.5 h-3.5" /> Archivos adjuntos
+                                            </div>
+                                            <ActionAttachments
+                                                projectId={id}
+                                                actionId={action.id}
+                                                userId={currentUser?.uid}
+                                            />
+                                        </div>
+                                    )}
+
                                     {/* Prioridad + Eliminar */}
                                     <div className="flex items-center justify-between pt-1">
                                         <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300 cursor-pointer">
@@ -983,23 +1163,24 @@ export default function ProjectDetail() {
                 <table className="w-full min-w-[980px] divide-y divide-gray-200 dark:divide-gray-700 text-sm">
                     <thead className="bg-gray-50 dark:bg-gray-800">
                         <tr>
-                            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase w-8">#</th>
-                            <th className="px-1 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase w-8" title="Prioridad">⚡</th>
-                            <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase w-16">Fecha</th>
-                            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase min-w-[560px] w-full">Acción</th>
-                            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase min-w-[140px]">Responsable</th>
-                            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase w-32">Estado</th>
+                            <th onClick={() => handleSort("seqId")} className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase w-8 cursor-pointer select-none group"># <SortIcon column="seqId" /></th>
+                            <th onClick={() => handleSort("orden")} className="px-2 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase w-12 cursor-pointer select-none group">Orden <SortIcon column="orden" /></th>
+                            <th onClick={() => handleSort("priority")} className="px-1 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase w-8 cursor-pointer select-none group" title="Prioridad">⚡ <SortIcon column="priority" /></th>
+                            <th onClick={() => handleSort("createdAt")} className="px-2 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase w-16 cursor-pointer select-none group">Fecha <SortIcon column="createdAt" /></th>
+                            <th onClick={() => handleSort("action")} className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase min-w-[560px] w-full cursor-pointer select-none group">Acción <SortIcon column="action" /></th>
+                            <th onClick={() => handleSort("assignedUsers")} className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase min-w-[140px] cursor-pointer select-none group">Responsable <SortIcon column="assignedUsers" /></th>
+                            <th onClick={() => handleSort("status")} className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase w-32 cursor-pointer select-none group">Estado <SortIcon column="status" /></th>
                             {isColumnVisible("proposedStartDate") && (
-                                <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase w-16 leading-3">F. Inicio<br />Propuesta</th>
+                                <th onClick={() => handleSort("proposedStartDate")} className="px-2 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase w-16 leading-3 cursor-pointer select-none group">F. Inicio<br />Propuesta <SortIcon column="proposedStartDate" /></th>
                             )}
                             {isColumnVisible("proposedEndDate") && (
-                                <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase w-16 leading-3">F. Fin<br />Propuesta</th>
+                                <th onClick={() => handleSort("proposedEndDate")} className="px-2 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase w-16 leading-3 cursor-pointer select-none group">F. Fin<br />Propuesta <SortIcon column="proposedEndDate" /></th>
                             )}
                             {isColumnVisible("startDate") && (
-                                <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase w-16 leading-3">F. Inicio<br />Real</th>
+                                <th onClick={() => handleSort("startDate")} className="px-2 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase w-16 leading-3 cursor-pointer select-none group">F. Inicio<br />Real <SortIcon column="startDate" /></th>
                             )}
                             {isColumnVisible("actualEndDate") && (
-                                <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase w-16 leading-3">F. Fin<br />Real</th>
+                                <th onClick={() => handleSort("actualEndDate")} className="px-2 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase w-16 leading-3 cursor-pointer select-none group">F. Fin<br />Real <SortIcon column="actualEndDate" /></th>
                             )}
                             {isColumnVisible("observations") && (
                                 <th className="px-1 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase w-10" title="Observaciones"><Eye className="w-3.5 h-3.5 mx-auto" /></th>
@@ -1007,18 +1188,34 @@ export default function ProjectDetail() {
                             {isColumnVisible("subactions") && (
                                 <th className="px-1 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase w-10" title="Subacciones"><ListTodo className="w-3.5 h-3.5 mx-auto" /></th>
                             )}
+                            {isColumnVisible("attachments") && (
+                                <th className="px-1 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase w-10" title="Adjuntos"><Paperclip className="w-3.5 h-3.5 mx-auto" /></th>
+                            )}
                             <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase w-10"></th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                        {filteredActions.map((action, index) => {
+                        {sortedActions.map((action, index) => {
                             const statusCfg = getStatusConfig(action.status);
                             const isEditingUsers = editingUsersActionId === action.id;
                             const subactionCount = (action.subactions || []).length;
                             return (
-                                <>
-                                    <tr key={action.id} className={`hover:bg-gray-50 dark:hover:bg-gray-800 transition ${action.priority ? 'bg-red-50/50 dark:bg-red-900/20' : ''}`}>
+                                <React.Fragment key={action.id}>
+                                    <tr className={`hover:bg-gray-50 dark:hover:bg-gray-800 transition ${action.priority ? 'bg-red-50/50 dark:bg-red-900/20' : ''}`}>
                                         <td className="px-3 py-2 text-gray-400 dark:text-gray-500">{action.seqId || "-"}</td>
+                                        <td className="px-2 py-2">
+                                            <input
+                                                type="number"
+                                                defaultValue={action.orden ?? ""}
+                                                key={`orden-${action.id}-${action.orden}`}
+                                                onBlur={(e) => {
+                                                    const val = e.target.value === "" ? null : Number(e.target.value);
+                                                    if (val !== (action.orden ?? null))
+                                                        handleUpdateField(action.id, "orden", val);
+                                                }}
+                                                className="w-14 bg-transparent border-0 focus:ring-1 focus:ring-blue-400 rounded text-sm text-gray-700 dark:text-gray-200 px-1 py-0.5 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                                            />
+                                        </td>
                                         <td className="px-3 py-2 text-center">
                                             <input
                                                 type="checkbox"
@@ -1155,6 +1352,16 @@ export default function ProjectDetail() {
                                                 </button>
                                             </td>
                                         )}
+                                        {isColumnVisible("attachments") && (
+                                            <td className="px-1 py-2 text-center">
+                                                <AttachmentToggleButton
+                                                    projectId={id}
+                                                    actionId={action.id}
+                                                    isExpanded={expandedAttachmentsActionId === action.id}
+                                                    onClick={() => setExpandedAttachmentsActionId(expandedAttachmentsActionId === action.id ? null : action.id)}
+                                                />
+                                            </td>
+                                        )}
                                         <td className="px-3 py-2">
                                             <button onClick={() => handleDeleteAction(action.id)} className="text-red-400 hover:text-red-600">
                                                 <Trash2 className="w-4 h-4" />
@@ -1184,6 +1391,22 @@ export default function ProjectDetail() {
                                                 </td>
                                             </tr>
                                         )}
+                                    {isColumnVisible("attachments") && expandedAttachmentsActionId === action.id && (
+                                        <tr className="bg-purple-50/30 dark:bg-purple-900/10">
+                                            <td colSpan={totalColumns} className="px-6 py-3">
+                                                <div className="max-w-2xl">
+                                                    <div className="text-xs font-semibold text-gray-600 dark:text-gray-300 mb-2 flex items-center gap-1.5">
+                                                        <Paperclip className="w-3.5 h-3.5" /> Archivos adjuntos
+                                                    </div>
+                                                    <ActionAttachments
+                                                        projectId={id}
+                                                        actionId={action.id}
+                                                        userId={currentUser?.uid}
+                                                    />
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    )}
                                     {isColumnVisible("subactions") && expandedSubactionsActionId === action.id && (
                                         <tr className="bg-gray-50 dark:bg-gray-900/40">
                                             <td colSpan={totalColumns} className="px-6 py-4">
@@ -1267,7 +1490,7 @@ export default function ProjectDetail() {
                                             </td>
                                         </tr>
                                     )}
-                                </>
+                                </React.Fragment>
                             );
                         })}
 
@@ -1275,6 +1498,7 @@ export default function ProjectDetail() {
                         {showNewRow && (
                             <tr className="bg-blue-50 dark:bg-blue-900/20">
                                 <td className="px-3 py-2 text-gray-400 dark:text-gray-500">+</td>
+                                <td className="px-2 py-2 text-gray-400 dark:text-gray-500 text-xs">-</td>
                                 <td className="px-3 py-2 text-center">
                                     <input
                                         type="checkbox"
@@ -1353,6 +1577,11 @@ export default function ProjectDetail() {
                                         -
                                     </td>
                                 )}
+                                {isColumnVisible("attachments") && (
+                                    <td className="px-1 py-2 text-center text-xs text-gray-400 dark:text-gray-500">
+                                        -
+                                    </td>
+                                )}
                                 <td className="px-3 py-2">
                                     <div className="flex gap-2">
                                         <button onClick={handleAddAction} className="px-3 py-1.5 bg-green-500 text-white rounded-lg hover:bg-green-600 text-sm font-medium transition">✓ Añadir</button>
@@ -1381,8 +1610,17 @@ export default function ProjectDetail() {
                 projectTitle={project.title}
             />
 
-            <div className="mt-4 text-xs text-gray-400 dark:text-gray-500 text-right">
-                {filteredActions.length} de {actions.length} acción(es)
+            <div className="mt-4 flex items-center justify-between">
+                <div className="text-xs text-gray-400 dark:text-gray-500">
+                    {filteredActions.length} de {actions.length} acción(es)
+                </div>
+                <button
+                    onClick={() => setShowNewRow(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm"
+                >
+                    <Plus className="w-4 h-4" />
+                    Nueva Acción
+                </button>
             </div>
         </div>
     );
