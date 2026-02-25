@@ -277,6 +277,11 @@ export default function ProjectDetail() {
     const [editDescription, setEditDescription] = useState("");
     const [editAssignedUsers, setEditAssignedUsers] = useState([]);
     const [editAssignedDepartments, setEditAssignedDepartments] = useState([]);
+    const [editRequiredActionFields, setEditRequiredActionFields] = useState({
+        assignedUsers: false,
+        proposedStartDate: false,
+        proposedEndDate: false
+    });
 
     const [showGantt, setShowGantt] = useState(false);
     const [expandedObsActionId, setExpandedObsActionId] = useState(null);
@@ -384,13 +389,25 @@ export default function ProjectDetail() {
         }
     });
 
+    const requiredFields = project?.requiredActionFields || {};
+
+    function validateActionFields(actionData) {
+        const errors = [];
+        if (!actionData.action.trim()) errors.push("Acción");
+        if (requiredFields.assignedUsers && (!actionData.assignedUsers || actionData.assignedUsers.length === 0)) errors.push("Responsable");
+        if (requiredFields.proposedStartDate && !actionData.proposedStartDate) errors.push("Fecha inicio propuesta");
+        if (requiredFields.proposedEndDate && !actionData.proposedEndDate) errors.push("Fecha fin propuesta");
+        return errors;
+    }
+
     async function handleAddAction() {
-        if (!newAction.action.trim()) return alert("Escribe una descripción para la acción.");
+        const errors = validateActionFields(newAction);
+        if (errors.length > 0) return alert(`Campos obligatorios sin completar: ${errors.join(", ")}`);
         try {
             await actionService.addAction(id, newAction);
             setNewAction({
                 action: "", assignedUsers: [], status: "pendiente",
-                proposedEndDate: "", startDate: "", actualEndDate: "", observations: "",
+                proposedStartDate: "", proposedEndDate: "", startDate: "", actualEndDate: "", observations: "",
                 priority: false
             });
             setShowNewRow(false);
@@ -400,6 +417,19 @@ export default function ProjectDetail() {
     }
 
     async function handleUpdateField(actionId, field, value) {
+        // Validar campos requeridos al editar inline
+        if (requiredFields.assignedUsers && field === "assignedUsers" && (!value || value.length === 0)) {
+            return alert("El campo Responsable es obligatorio en este proyecto.");
+        }
+        if (requiredFields.proposedStartDate && field === "proposedStartDate" && !value) {
+            return alert("El campo Fecha inicio propuesta es obligatorio en este proyecto.");
+        }
+        if (requiredFields.proposedEndDate && field === "proposedEndDate" && !value) {
+            return alert("El campo Fecha fin propuesta es obligatorio en este proyecto.");
+        }
+        if (field === "action" && (!value || !value.trim())) {
+            return alert("El campo Acción es obligatorio.");
+        }
         try {
             await actionService.updateAction(id, actionId, { [field]: value });
         } catch (error) {
@@ -506,6 +536,11 @@ export default function ProjectDetail() {
         setEditDescription(project.description || "");
         setEditAssignedUsers(project.assignedUsers || []);
         setEditAssignedDepartments(project.assignedDepartments || []);
+        setEditRequiredActionFields(project.requiredActionFields || {
+            assignedUsers: false,
+            proposedStartDate: false,
+            proposedEndDate: false
+        });
         setEditingProject(true);
     }
 
@@ -515,7 +550,8 @@ export default function ProjectDetail() {
                 title: editTitle,
                 description: editDescription,
                 assignedUsers: editAssignedUsers,
-                assignedDepartments: editAssignedDepartments
+                assignedDepartments: editAssignedDepartments,
+                requiredActionFields: editRequiredActionFields
             });
             setEditingProject(false);
         } catch (error) {
@@ -676,6 +712,39 @@ export default function ProjectDetail() {
                                 placeholder="Seleccionar departamentos"
                             />
                         </div>
+                        <div>
+                            <span className="text-sm text-gray-600 dark:text-gray-300 font-medium">Campos obligatorios en acciones:</span>
+                            <p className="text-xs text-gray-400 dark:text-gray-500 mb-2">El campo "Acción" siempre es obligatorio.</p>
+                            <div className="flex flex-wrap gap-4">
+                                <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={editRequiredActionFields.assignedUsers}
+                                        onChange={(e) => setEditRequiredActionFields({ ...editRequiredActionFields, assignedUsers: e.target.checked })}
+                                        className="w-4 h-4 text-blue-600 rounded"
+                                    />
+                                    Responsable
+                                </label>
+                                <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={editRequiredActionFields.proposedStartDate}
+                                        onChange={(e) => setEditRequiredActionFields({ ...editRequiredActionFields, proposedStartDate: e.target.checked })}
+                                        className="w-4 h-4 text-blue-600 rounded"
+                                    />
+                                    F. Inicio Propuesta
+                                </label>
+                                <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={editRequiredActionFields.proposedEndDate}
+                                        onChange={(e) => setEditRequiredActionFields({ ...editRequiredActionFields, proposedEndDate: e.target.checked })}
+                                        className="w-4 h-4 text-blue-600 rounded"
+                                    />
+                                    F. Fin Propuesta
+                                </label>
+                            </div>
+                        </div>
                         <div className="flex gap-2 pt-2">
                             <button onClick={saveProjectEdits} className="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">Guardar</button>
                             <button onClick={() => setEditingProject(false)} className="px-3 py-1.5 text-gray-600 dark:text-gray-300 text-sm border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">Cancelar</button>
@@ -829,7 +898,7 @@ export default function ProjectDetail() {
                                 </select>
                             </div>
                             <div>
-                                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Responsable</label>
+                                <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Responsable{requiredFields.assignedUsers && <span className="text-red-500 ml-0.5">*</span>}</label>
                                 <MultiCheckDropdown
                                     options={userOptions}
                                     selected={newAction.assignedUsers}
@@ -837,9 +906,17 @@ export default function ProjectDetail() {
                                     placeholder="Seleccionar..."
                                 />
                             </div>
+                            {isColumnVisible("proposedStartDate") && (
+                                <div>
+                                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">F. Inicio Propuesta{requiredFields.proposedStartDate && <span className="text-red-500 ml-0.5">*</span>}</label>
+                                    <input type="date" value={newAction.proposedStartDate}
+                                        onChange={(e) => setNewAction({ ...newAction, proposedStartDate: e.target.value })}
+                                        className="border border-blue-300 dark:border-blue-700 rounded-lg text-xs px-2 py-1.5 w-full dark:bg-gray-900 dark:text-gray-100" />
+                                </div>
+                            )}
                             {isColumnVisible("proposedEndDate") && (
                                 <div>
-                                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">F. Fin Propuesta</label>
+                                    <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">F. Fin Propuesta{requiredFields.proposedEndDate && <span className="text-red-500 ml-0.5">*</span>}</label>
                                     <input type="date" value={newAction.proposedEndDate}
                                         onChange={(e) => setNewAction({ ...newAction, proposedEndDate: e.target.value })}
                                         className="border border-blue-300 dark:border-blue-700 rounded-lg text-xs px-2 py-1.5 w-full dark:bg-gray-900 dark:text-gray-100" />
@@ -1168,13 +1245,13 @@ export default function ProjectDetail() {
                             <th onClick={() => handleSort("priority")} className="px-1 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase w-8 cursor-pointer select-none group" title="Prioridad">⚡ <SortIcon column="priority" /></th>
                             <th onClick={() => handleSort("createdAt")} className="px-2 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase w-16 cursor-pointer select-none group">Fecha <SortIcon column="createdAt" /></th>
                             <th onClick={() => handleSort("action")} className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase min-w-[560px] w-full cursor-pointer select-none group">Acción <SortIcon column="action" /></th>
-                            <th onClick={() => handleSort("assignedUsers")} className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase min-w-[140px] cursor-pointer select-none group">Responsable <SortIcon column="assignedUsers" /></th>
+                            <th onClick={() => handleSort("assignedUsers")} className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase min-w-[140px] cursor-pointer select-none group">Responsable{requiredFields.assignedUsers && <span className="text-red-500 ml-0.5">*</span>} <SortIcon column="assignedUsers" /></th>
                             <th onClick={() => handleSort("status")} className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase w-32 cursor-pointer select-none group">Estado <SortIcon column="status" /></th>
                             {isColumnVisible("proposedStartDate") && (
-                                <th onClick={() => handleSort("proposedStartDate")} className="px-2 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase w-16 leading-3 cursor-pointer select-none group">F. Inicio<br />Propuesta <SortIcon column="proposedStartDate" /></th>
+                                <th onClick={() => handleSort("proposedStartDate")} className="px-2 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase w-16 leading-3 cursor-pointer select-none group">F. Inicio<br />Propuesta{requiredFields.proposedStartDate && <span className="text-red-500 ml-0.5">*</span>} <SortIcon column="proposedStartDate" /></th>
                             )}
                             {isColumnVisible("proposedEndDate") && (
-                                <th onClick={() => handleSort("proposedEndDate")} className="px-2 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase w-16 leading-3 cursor-pointer select-none group">F. Fin<br />Propuesta <SortIcon column="proposedEndDate" /></th>
+                                <th onClick={() => handleSort("proposedEndDate")} className="px-2 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase w-16 leading-3 cursor-pointer select-none group">F. Fin<br />Propuesta{requiredFields.proposedEndDate && <span className="text-red-500 ml-0.5">*</span>} <SortIcon column="proposedEndDate" /></th>
                             )}
                             {isColumnVisible("startDate") && (
                                 <th onClick={() => handleSort("startDate")} className="px-2 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase w-16 leading-3 cursor-pointer select-none group">F. Inicio<br />Real <SortIcon column="startDate" /></th>

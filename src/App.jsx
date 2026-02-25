@@ -9,6 +9,7 @@ import CreateProject from "./pages/CreateProject";
 import ProjectDetail from "./pages/ProjectDetail";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminRoute from "./components/AdminRoute";
+import InstallPWA from "./components/InstallPWA";
 import Reports from "./pages/Reports";
 
 function App() {
@@ -48,6 +49,7 @@ function App() {
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        <InstallPWA />
       </AuthProvider>
     </Router>
   );

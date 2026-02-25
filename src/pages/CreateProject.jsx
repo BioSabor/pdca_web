@@ -16,6 +16,11 @@ export default function CreateProject() {
     const [selectedUsers, setSelectedUsers] = useState([currentUser?.uid].filter(Boolean));
     const { departments: allDepartments } = useRealtimeDepartments();
     const [selectedDepartments, setSelectedDepartments] = useState([]);
+    const [requiredActionFields, setRequiredActionFields] = useState({
+        assignedUsers: false,
+        proposedStartDate: false,
+        proposedEndDate: false
+    });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
 
@@ -53,7 +58,8 @@ export default function CreateProject() {
                 title,
                 description,
                 assignedUsers: selectedUsers,
-                assignedDepartments: selectedDepartments
+                assignedDepartments: selectedDepartments,
+                requiredActionFields
             });
             navigate("/");
         } catch (err) {
@@ -166,6 +172,40 @@ export default function CreateProject() {
                             )}
                         </div>
                         <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">{selectedUsers.length} usuario(s) seleccionado(s)</p>
+                    </div>
+
+                    <div className="mb-6">
+                        <label className="block text-gray-700 dark:text-gray-200 font-medium mb-2">Campos obligatorios en acciones</label>
+                        <p className="text-xs text-gray-400 dark:text-gray-500 mb-3">El campo "Acción" siempre es obligatorio. Selecciona qué campos adicionales serán obligatorios al crear o editar acciones.</p>
+                        <div className="border border-gray-300 dark:border-gray-700 rounded-lg p-3 space-y-2 bg-white dark:bg-gray-900">
+                            <label className="flex items-center gap-3 p-2 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                                <input
+                                    type="checkbox"
+                                    checked={requiredActionFields.assignedUsers}
+                                    onChange={(e) => setRequiredActionFields({ ...requiredActionFields, assignedUsers: e.target.checked })}
+                                    className="w-4 h-4 text-blue-600 rounded"
+                                />
+                                <span className="text-sm text-gray-800 dark:text-gray-100">Responsable</span>
+                            </label>
+                            <label className="flex items-center gap-3 p-2 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                                <input
+                                    type="checkbox"
+                                    checked={requiredActionFields.proposedStartDate}
+                                    onChange={(e) => setRequiredActionFields({ ...requiredActionFields, proposedStartDate: e.target.checked })}
+                                    className="w-4 h-4 text-blue-600 rounded"
+                                />
+                                <span className="text-sm text-gray-800 dark:text-gray-100">Fecha inicio propuesta</span>
+                            </label>
+                            <label className="flex items-center gap-3 p-2 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                                <input
+                                    type="checkbox"
+                                    checked={requiredActionFields.proposedEndDate}
+                                    onChange={(e) => setRequiredActionFields({ ...requiredActionFields, proposedEndDate: e.target.checked })}
+                                    className="w-4 h-4 text-blue-600 rounded"
+                                />
+                                <span className="text-sm text-gray-800 dark:text-gray-100">Fecha fin propuesta</span>
+                            </label>
+                        </div>
                     </div>
 
                     <div className="flex justify-end gap-4">
