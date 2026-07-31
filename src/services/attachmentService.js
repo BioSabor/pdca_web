@@ -13,7 +13,7 @@ import {
     doc,
     query,
     where,
-    orderBy,
+    writeBatch,
     serverTimestamp,
     onSnapshot
 } from "firebase/firestore";
@@ -117,7 +117,7 @@ export async function getAttachments(projectId, actionId) {
 /**
  * Suscripción en tiempo real a los adjuntos de una acción.
  */
-export function subscribeToAttachments(projectId, actionId, callback) {
+export function subscribeToAttachments(projectId, actionId, callback, onError) {
     const q = query(
         collection(db, "attachments"),
         where("projectId", "==", projectId),
@@ -129,18 +129,34 @@ export function subscribeToAttachments(projectId, actionId, callback) {
         callback(results);
     }, (error) => {
         console.error("Error en suscripción de adjuntos:", error);
+        onError?.(error);
     });
 }
 
 /**
- * Elimina un adjunto (Storage + Firestore).
+ * Suscripción a TODOS los adjuntos de un proyecto (un único listener para
+ * pintar los contadores de toda la tabla, en lugar de uno por acción).
+ */
+export function subscribeToProjectAttachments(projectId, callback, onError) {
+    const q = query(collection(db, "attachments"), where("projectId", "==", projectId));
+    return onSnapshot(q, (snapshot) => {
+        callback(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+    }, (error) => {
+        console.error("Error en suscripción de adjuntos del proyecto:", error);
+        onError?.(error);
+    });
+}
+
+/**
+ * Elimina un adjunto (Storage + Firestore). Un fichero ya inexistente en
+ * Storage no es un error; cualquier otro fallo de Storage se propaga para no
+ * dejar blobs huérfanos facturables con su doc borrado.
  */
 export async function deleteAttachment(attachmentId, storagePath) {
     try {
-        const storageRef = ref(storage, storagePath);
-        await deleteObject(storageRef);
+        await deleteObject(ref(storage, storagePath));
     } catch (err) {
-        console.warn("No se pudo eliminar de Storage:", err);
+        if (err?.code !== "storage/object-not-found") throw err;
     }
     await deleteDoc(doc(db, "attachments", attachmentId));
 }
@@ -151,6 +167,36 @@ export async function deleteAttachment(attachmentId, storagePath) {
 export async function deleteAllAttachments(projectId, actionId) {
     const attachments = await getAttachments(projectId, actionId);
     await Promise.all(attachments.map(att => deleteAttachment(att.id, att.storagePath)));
+}
+
+/**
+ * Elimina todos los adjuntos de un proyecto (ficheros + metadatos).
+ * Idempotente y reintentable; devuelve las rutas que no se pudieron borrar.
+ * @returns {Promise<{orphanFiles: string[]}>}
+ */
+export async function deleteAllProjectAttachments(projectId) {
+    const q = query(collection(db, "attachments"), where("projectId", "==", projectId));
+    const snapshot = await getDocs(q);
+    const attachments = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    const results = await Promise.allSettled(
+        attachments.map(att => deleteObject(ref(storage, att.storagePath)))
+    );
+    const orphanFiles = [];
+    results.forEach((r, i) => {
+        if (r.status === "rejected" && r.reason?.code !== "storage/object-not-found") {
+            orphanFiles.push(attachments[i].storagePath);
+        }
+    });
+
+    // Borrar metadatos por lotes (límite de 500 operaciones por batch)
+    for (let i = 0; i < attachments.length; i += 450) {
+        const batch = writeBatch(db);
+        attachments.slice(i, i + 450).forEach(att => batch.delete(doc(db, "attachments", att.id)));
+        await batch.commit();
+    }
+
+    return { orphanFiles };
 }
 
 /**

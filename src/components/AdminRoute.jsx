@@ -1,22 +1,24 @@
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import Spinner from "./ui/Spinner";
 
 export default function AdminRoute({ children }) {
     const { currentUser, authLoading } = useAuth();
 
     if (authLoading) {
-        return null;
+        return (
+            <div className="flex h-dvh items-center justify-center">
+                <Spinner size="lg" />
+            </div>
+        );
     }
 
-    // Check if user is logged in
     if (!currentUser) {
-        return <Navigate to="/login" />;
+        return <Navigate to="/login" replace />;
     }
 
-    // Check if user has admin role
-    if (currentUser.role !== 'admin') {
-        // Redirect non-admins to dashboard
-        return <Navigate to="/" />;
+    if (currentUser.role !== "admin") {
+        return <Navigate to="/" replace />;
     }
 
     return children;

@@ -1,131 +1,226 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, Settings, LogOut, Menu, X, Sun, Moon, BarChart3, CalendarDays } from "lucide-react";
+import { LayoutDashboard, Settings, LogOut, Menu, X, Sun, Moon, BarChart3, CalendarDays, ListTodo, Search } from "lucide-react";
+import { createPortal } from "react-dom";
 import { useAuth } from "../context/AuthContext";
+import useModalBehavior from "../hooks/useModalBehavior";
+import NotificationBell from "./notifications/NotificationBell";
+import { OPEN_PALETTE_EVENT } from "./search/CommandPalette";
+import { cn } from "../lib/utils";
+
+function openPalette() {
+    window.dispatchEvent(new Event(OPEN_PALETTE_EVENT));
+}
+
+const THEME_KEY = "pdca_theme";
+
+export function getNavItems(currentUser) {
+    const items = [
+        { name: "Mis Tareas", icon: ListTodo, path: "/my-tasks" },
+        { name: "Panel Principal", icon: LayoutDashboard, path: "/" },
+        { name: "Calendario", icon: CalendarDays, path: "/calendar" },
+        { name: "Informes", icon: BarChart3, path: "/reports" },
+    ];
+    if (currentUser?.role === "admin") {
+        items.push({ name: "Configuración", icon: Settings, path: "/admin" });
+    }
+    return items;
+}
 
 export default function TopNav() {
     const { logout, currentUser } = useAuth();
     const location = useLocation();
     const [open, setOpen] = useState(false);
-    const [theme, setTheme] = useState("light");
+    const [theme, setTheme] = useState(() =>
+        document.documentElement.classList.contains("dark") ? "dark" : "light"
+    );
+    const drawerRef = useRef(null);
 
-    const menuItems = [
-        { name: "Panel Principal", icon: LayoutDashboard, path: "/" },
-        { name: "Calendario", icon: CalendarDays, path: "/calendar" }
-    ];
-
-    if (currentUser?.role === "admin") {
-        menuItems.push({ name: "Informes", icon: BarChart3, path: "/reports" });
-        menuItems.push({ name: "Configuracion", icon: Settings, path: "/admin" });
-    }
-
+    const menuItems = getNavItems(currentUser);
     const isActive = (path) => location.pathname === path;
-    const themeKey = currentUser?.uid ? `pdca_theme_${currentUser.uid}` : "pdca_theme_guest";
 
+    // Migración desde la clave antigua por-usuario a la clave global
     useEffect(() => {
-        const storedTheme = localStorage.getItem(themeKey) || "light";
-        setTheme(storedTheme);
-        document.documentElement.classList.toggle("dark", storedTheme === "dark");
-    }, [themeKey]);
+        if (!currentUser?.uid) return;
+        if (localStorage.getItem(THEME_KEY) !== null) return;
+        const legacy = localStorage.getItem(`pdca_theme_${currentUser.uid}`);
+        if (legacy) {
+            localStorage.setItem(THEME_KEY, legacy);
+            setTheme(legacy);
+            document.documentElement.classList.toggle("dark", legacy === "dark");
+        }
+    }, [currentUser?.uid]);
+
+    // Cerrar el drawer al navegar
+    useEffect(() => {
+        setOpen(false);
+    }, [location.pathname]);
+
+    useModalBehavior({ open, onClose: () => setOpen(false), panelRef: drawerRef });
 
     function toggleTheme() {
         const nextTheme = theme === "dark" ? "light" : "dark";
         setTheme(nextTheme);
-        localStorage.setItem(themeKey, nextTheme);
+        localStorage.setItem(THEME_KEY, nextTheme);
         document.documentElement.classList.toggle("dark", nextTheme === "dark");
     }
 
+    const navLinkClasses = (path) =>
+        cn(
+            "flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors",
+            isActive(path)
+                ? "bg-brand-600 text-white"
+                : "text-gray-600 hover:bg-surface-2 dark:text-gray-300"
+        );
+
     return (
-        <header className="sticky top-0 z-40 bg-white border-b border-gray-200 dark:bg-gray-900 dark:border-gray-800">
-            <div className="px-4 md:px-8 h-16 flex items-center justify-between">
-                <Link to="/" className="flex items-center gap-3">
-                    <img src="/BIOSABOR_NOCLAIM-01.png" alt="Biosabor" className="h-9 object-contain" />
-                    <span className="hidden sm:inline text-sm font-semibold text-gray-700 dark:text-gray-200">PDCA Manager</span>
+        <header className="z-nav border-b border-line bg-surface">
+            <div className="flex h-16 items-center justify-between gap-2 px-4 md:px-8">
+                <Link to="/" className="flex min-w-0 items-center gap-3">
+                    <img src="/BIOSABOR_NOCLAIM-01.png" alt="BioSabor" className="h-9 object-contain" />
+                    <span className="hidden text-sm font-semibold text-gray-700 dark:text-gray-200 sm:inline">
+                        PDCA Manager
+                    </span>
                 </Link>
 
-                <nav className="hidden md:flex items-center gap-2">
+                <nav className="hidden items-center gap-1 lg:flex" aria-label="Navegación principal">
                     {menuItems.map((item) => (
                         <Link
                             key={item.path}
                             to={item.path}
-                            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition ${isActive(item.path)
-                                ? "bg-blue-600 text-white"
-                                : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"}`}
+                            aria-current={isActive(item.path) ? "page" : undefined}
+                            className={navLinkClasses(item.path)}
                         >
-                            <item.icon className="w-4 h-4" />
+                            <item.icon className="h-4 w-4" />
                             {item.name}
                         </Link>
                     ))}
                 </nav>
 
-                <div className="hidden md:flex items-center gap-4">
-                    <div className="text-right">
-                        <span className="text-sm font-medium text-gray-800 dark:text-gray-100 block">
+                <div className="hidden items-center gap-2 lg:flex">
+                    <button
+                        type="button"
+                        onClick={openPalette}
+                        className="flex h-9 items-center gap-2 rounded-lg border border-line bg-canvas px-3 text-sm text-gray-400 transition-colors hover:border-brand-400 hover:text-gray-500 dark:hover:text-gray-300"
+                        aria-label="Buscar (Ctrl+K)"
+                    >
+                        <Search className="h-4 w-4" />
+                        <span>Buscar…</span>
+                        <kbd className="rounded border border-line bg-surface px-1.5 text-[11px]">Ctrl K</kbd>
+                    </button>
+                    <NotificationBell />
+                    <div className="mr-1 text-right">
+                        <span className="block text-sm font-medium text-gray-800 dark:text-gray-100">
                             {currentUser?.displayName || "Usuario"}
                         </span>
                         <span className="text-xs text-gray-500 dark:text-gray-400">{currentUser?.email}</span>
                     </div>
                     <button
                         onClick={toggleTheme}
-                        className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800 rounded-lg transition"
+                        className="btn-icon btn-ghost"
+                        aria-label={theme === "dark" ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
                         title={theme === "dark" ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
                     >
-                        {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-                        {theme === "dark" ? "Modo claro" : "Modo oscuro"}
+                        {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
                     </button>
                     <button
                         onClick={logout}
-                        className="flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition"
+                        className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/30"
                     >
-                        <LogOut className="w-4 h-4" />
-                        Cerrar Sesion
+                        <LogOut className="h-4 w-4" />
+                        Cerrar sesión
                     </button>
                 </div>
 
-                <button
-                    onClick={() => setOpen(!open)}
-                    className="md:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
-                    aria-label="Toggle menu"
-                >
-                    {open ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-                </button>
+                <div className="flex items-center gap-1 lg:hidden">
+                    <button
+                        type="button"
+                        onClick={openPalette}
+                        className="btn-icon btn-ghost"
+                        aria-label="Buscar"
+                    >
+                        <Search className="h-4 w-4" />
+                    </button>
+                    <NotificationBell />
+                    <button
+                        onClick={() => setOpen(true)}
+                        className="btn-icon btn-ghost"
+                        aria-label="Abrir menú"
+                        aria-expanded={open}
+                        aria-controls="mobile-drawer"
+                    >
+                        <Menu className="h-5 w-5" />
+                    </button>
+                </div>
             </div>
 
-            {open && (
-                <div className="md:hidden border-t border-gray-200 dark:border-gray-800 px-4 py-3 space-y-2 bg-white dark:bg-gray-900">
-                    <div className="pb-2">
-                        <div className="text-sm font-medium text-gray-800 dark:text-gray-100">{currentUser?.displayName || "Usuario"}</div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400">{currentUser?.email}</div>
-                    </div>
-                    {menuItems.map((item) => (
-                        <Link
-                            key={item.path}
-                            to={item.path}
-                            onClick={() => setOpen(false)}
-                            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition ${isActive(item.path)
-                                ? "bg-blue-600 text-white"
-                                : "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"}`}
+            {/* Drawer móvil */}
+            {open &&
+                createPortal(
+                    <div className="fixed inset-0 z-modal lg:hidden">
+                        <div
+                            className="absolute inset-0 bg-black/40"
+                            onMouseDown={() => setOpen(false)}
+                            aria-hidden="true"
+                        />
+                        <div
+                            ref={drawerRef}
+                            id="mobile-drawer"
+                            role="dialog"
+                            aria-modal="true"
+                            aria-label="Menú"
+                            className="absolute inset-y-0 right-0 flex w-72 max-w-[85vw] flex-col bg-surface shadow-overlay"
                         >
-                            <item.icon className="w-4 h-4" />
-                            {item.name}
-                        </Link>
-                    ))}
-                    <button
-                        onClick={toggleTheme}
-                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800 rounded-lg transition"
-                    >
-                        {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-                        {theme === "dark" ? "Modo claro" : "Modo oscuro"}
-                    </button>
-                    <button
-                        onClick={logout}
-                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition"
-                    >
-                        <LogOut className="w-4 h-4" />
-                        Cerrar Sesion
-                    </button>
-                </div>
-            )}
+                            <div className="flex items-center justify-between border-b border-line px-4 py-3">
+                                <div className="min-w-0">
+                                    <div className="truncate text-sm font-medium text-gray-800 dark:text-gray-100">
+                                        {currentUser?.displayName || "Usuario"}
+                                    </div>
+                                    <div className="truncate text-xs text-gray-500 dark:text-gray-400">
+                                        {currentUser?.email}
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => setOpen(false)}
+                                    className="btn-icon btn-ghost"
+                                    aria-label="Cerrar menú"
+                                >
+                                    <X className="h-5 w-5" />
+                                </button>
+                            </div>
+                            <nav className="flex-1 space-y-1 overflow-y-auto p-3" aria-label="Navegación principal">
+                                {menuItems.map((item) => (
+                                    <Link
+                                        key={item.path}
+                                        to={item.path}
+                                        aria-current={isActive(item.path) ? "page" : undefined}
+                                        className={navLinkClasses(item.path)}
+                                    >
+                                        <item.icon className="h-4 w-4" />
+                                        {item.name}
+                                    </Link>
+                                ))}
+                            </nav>
+                            <div className="space-y-1 border-t border-line p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+                                <button
+                                    onClick={toggleTheme}
+                                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-gray-600 transition-colors hover:bg-surface-2 dark:text-gray-300"
+                                >
+                                    {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                                    {theme === "dark" ? "Modo claro" : "Modo oscuro"}
+                                </button>
+                                <button
+                                    onClick={logout}
+                                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/30"
+                                >
+                                    <LogOut className="h-4 w-4" />
+                                    Cerrar sesión
+                                </button>
+                            </div>
+                        </div>
+                    </div>,
+                    document.body
+                )}
         </header>
     );
 }

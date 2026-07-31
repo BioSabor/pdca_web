@@ -1,28 +1,15 @@
-import { useState, useEffect } from "react";
 import { subscriptions } from "../services/projectService";
+import useRealtimeSubscription from "./useRealtimeSubscription";
 
 /**
- * Hook para suscribirse a TODOS los proyectos en tiempo real.
- * Útil para Reports/Calendar donde se necesitan títulos de proyectos.
- * @returns {{ projects: Array, loading: boolean }}
+ * Todos los proyectos (títulos para Reports/Calendar de admin).
+ * @returns {{ projects: Array, loading: boolean, error: Error|null, retry: Function }}
  */
-export default function useRealtimeAllProjects() {
-    const [projects, setProjects] = useState([]);
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        let firstUpdate = true;
-
-        const unsubscribe = subscriptions.subscribeToAllProjects((data) => {
-            setProjects(data);
-            if (firstUpdate) {
-                setLoading(false);
-                firstUpdate = false;
-            }
-        });
-
-        return () => unsubscribe();
-    }, []);
-
-    return { projects, loading };
+export default function useRealtimeAllProjects({ enabled = true } = {}) {
+    const { data, loading, error, retry } = useRealtimeSubscription(
+        (onData, onError) => subscriptions.subscribeToAllProjects(onData, onError),
+        [],
+        { enabled }
+    );
+    return { projects: data, loading, error, retry };
 }

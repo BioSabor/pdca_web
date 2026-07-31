@@ -1,0 +1,30 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function role() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role;
+    }
+    function isProjectMember(projectId) {
+      let p = firestore.get(/databases/(default)/documents/projects/$(projectId)).data;
+      return p.createdBy == request.auth.uid || request.auth.uid in p.assignedUsers;
+    }
+
+    // Adjuntos de acciones: attachments/{projectId}/{actionId}/{fileName}
+    match /attachments/{projectId}/{actionId}/{fileName} {
+      allow read: if request.auth != null
+        && (role() == 'admin' || isProjectMember(projectId));
+      allow create: if request.auth != null
+        && request.resource.size < 10 * 1024 * 1024
+        && (role() == 'admin' || isProjectMember(projectId));
+      allow update: if false;
+      allow delete: if request.auth != null
+        && (role() == 'admin' || isProjectMember(projectId));
+    }
+
+    // Todo lo demás, denegado
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,54 +1,57 @@
 import { useState } from "react";
-import { Users, Settings, Building2, LayoutDashboard } from "lucide-react";
+import { Users, Settings, Building2, LayoutTemplate } from "lucide-react";
 import UserManagement from "../components/UserManagement";
 import StatusConfig from "../components/StatusConfig";
 import DepartmentConfig from "../components/DepartmentConfig";
-import { Link } from "react-router-dom";
+import TemplateManager from "../components/templates/TemplateManager";
+import PageContainer from "../components/ui/PageContainer";
+import { cn } from "../lib/utils";
+
+const TABS = [
+    { id: "users", label: "Usuarios", icon: Users },
+    { id: "statuses", label: "Estados", icon: Settings },
+    { id: "departments", label: "Departamentos", icon: Building2 },
+    { id: "templates", label: "Plantillas", icon: LayoutTemplate },
+];
 
 export default function AdminDashboard() {
     const [activeTab, setActiveTab] = useState("users");
 
     return (
-        <div className="p-4 md:p-8 max-w-6xl mx-auto">
-            <div className="flex justify-between items-center mb-6">
-                <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100">Panel de Administración</h1>
-                <Link to="/" className="flex items-center text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
-                    <LayoutDashboard className="w-4 h-4 mr-2" />
-                    Volver al Dashboard
-                </Link>
+        <PageContainer maxWidth="6xl" title="Panel de Administración" backTo="/">
+            {/* Pestañas */}
+            <div
+                role="tablist"
+                aria-label="Secciones de administración"
+                className="mb-6 flex overflow-x-auto border-b border-line"
+            >
+                {TABS.map(({ id, label, icon: Icon }) => (
+                    <button
+                        key={id}
+                        type="button"
+                        role="tab"
+                        aria-selected={activeTab === id}
+                        onClick={() => setActiveTab(id)}
+                        className={cn(
+                            "flex flex-shrink-0 items-center gap-2 whitespace-nowrap border-b-2 px-3 py-3 text-sm font-medium transition-colors md:px-6",
+                            activeTab === id
+                                ? "border-brand-600 text-brand-600 dark:text-brand-400"
+                                : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-400 dark:hover:border-gray-600 dark:hover:text-gray-200"
+                        )}
+                    >
+                        <Icon className="h-4 w-4" />
+                        {label}
+                    </button>
+                ))}
             </div>
 
-            {/* Tabs */}
-            <div className="flex border-b border-gray-200 dark:border-gray-700 mb-6">
-                <button
-                    onClick={() => setActiveTab("users")}
-                    className={`flex items-center gap-2 px-6 py-3 font-medium text-sm transition-colors border-b-2 ${activeTab === "users" ? "border-blue-600 text-blue-600 dark:text-blue-400" : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300 dark:hover:border-gray-600"}`}
-                >
-                    <Users className="w-4 h-4" />
-                    Usuarios
-                </button>
-                <button
-                    onClick={() => setActiveTab("statuses")}
-                    className={`flex items-center gap-2 px-6 py-3 font-medium text-sm transition-colors border-b-2 ${activeTab === "statuses" ? "border-blue-600 text-blue-600 dark:text-blue-400" : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300 dark:hover:border-gray-600"}`}
-                >
-                    <Settings className="w-4 h-4" />
-                    Estados
-                </button>
-                <button
-                    onClick={() => setActiveTab("departments")}
-                    className={`flex items-center gap-2 px-6 py-3 font-medium text-sm transition-colors border-b-2 ${activeTab === "departments" ? "border-blue-600 text-blue-600 dark:text-blue-400" : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300 dark:hover:border-gray-600"}`}
-                >
-                    <Building2 className="w-4 h-4" />
-                    Departamentos
-                </button>
-            </div>
-
-            {/* Content */}
-            <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 min-h-[500px]">
+            {/* Contenido */}
+            <div className="min-h-[500px]">
                 {activeTab === "users" && <UserManagement />}
                 {activeTab === "statuses" && <StatusConfig />}
                 {activeTab === "departments" && <DepartmentConfig />}
+                {activeTab === "templates" && <TemplateManager />}
             </div>
-        </div>
+        </PageContainer>
     );
 }

@@ -1,121 +1,213 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { statusService } from "../services/projectService";
-import { Plus, Trash2, GripVertical } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import useRealtimeStatuses from "../hooks/useRealtimeStatuses";
+import StatusPill from "./ui/StatusPill";
+import { SkeletonRows } from "./ui/Skeleton";
+import { useToast } from "./ui/Toast";
+import { useConfirm } from "./ui/ConfirmDialog";
+
+const TYPE_OPTIONS = [
+    { value: "none", label: "Sin automatismo" },
+    { value: "start", label: "Inicia acción (fecha inicio)" },
+    { value: "end", label: "Finaliza acción (fecha fin)" },
+    { value: "cancelled", label: "Cancelado / Descartado" },
+];
 
 export default function StatusConfig() {
     const { statuses: realtimeStatuses, loading } = useRealtimeStatuses();
+    const toast = useToast();
+    const confirm = useConfirm();
+
     const [statuses, setStatuses] = useState([]);
     const [saving, setSaving] = useState(false);
+    const [dirty, setDirty] = useState(false);
+    const [remoteChanged, setRemoteChanged] = useState(false);
+    const dirtyRef = useRef(false);
 
-    // Sincronizar estado local con datos en tiempo real (solo si no estamos editando)
+    function markDirty() {
+        dirtyRef.current = true;
+        setDirty(true);
+    }
+
+    function clearDirty() {
+        dirtyRef.current = false;
+        setDirty(false);
+        setRemoteChanged(false);
+    }
+
+    // Sincronizar con el snapshot remoto solo si no hay ediciones locales.
+    // Si llega un snapshot con cambios locales pendientes, se avisa sin sobrescribir.
     useEffect(() => {
-        if (!saving) {
+        if (loading || saving) return;
+        if (dirtyRef.current) {
+            setRemoteChanged(true);
+        } else {
             setStatuses(realtimeStatuses);
+            setRemoteChanged(false);
         }
-    }, [realtimeStatuses, saving]);
+    }, [realtimeStatuses, loading, saving]);
+
+    function discardLocalChanges() {
+        setStatuses(realtimeStatuses);
+        clearDirty();
+    }
 
     function addStatus() {
         const newId = "estado_" + Date.now();
-        setStatuses([...statuses, { id: newId, label: "Nuevo Estado", color: "#9CA3AF", type: "none" }]);
+        markDirty();
+        setStatuses((prev) => [
+            ...prev,
+            { id: newId, label: "Nuevo Estado", color: "#9CA3AF", type: "none" },
+        ]);
     }
 
-    function removeStatus(id) {
-        if (statuses.length <= 1) return alert("Debe haber al menos un estado.");
-        setStatuses(statuses.filter(s => s.id !== id));
+    async function removeStatus(status) {
+        if (statuses.length <= 1) {
+            toast.error("Debe haber al menos un estado.");
+            return;
+        }
+        const ok = await confirm({
+            title: "Eliminar estado",
+            message: `Se eliminará el estado «${status.label}». Las acciones que lo usen quedarán con un estado huérfano y habrá que reasignarlas manualmente. El cambio se aplicará al guardar.`,
+            confirmLabel: "Eliminar",
+            tone: "danger",
+        });
+        if (!ok) return;
+        markDirty();
+        setStatuses((prev) => prev.filter((s) => s.id !== status.id));
     }
 
     function updateStatus(id, field, value) {
-        setStatuses(statuses.map(s => s.id === id ? { ...s, [field]: value } : s));
+        markDirty();
+        setStatuses((prev) => prev.map((s) => (s.id === id ? { ...s, [field]: value } : s)));
     }
 
     async function handleSave() {
         setSaving(true);
         try {
             await statusService.updateStatuses(statuses);
-            alert("Estados guardados correctamente");
+            clearDirty();
+            toast.success("Estados guardados correctamente");
         } catch (error) {
-            alert("Error al guardar estados");
+            console.error("Error al guardar estados:", error);
+            toast.error("Error al guardar los estados");
         } finally {
             setSaving(false);
         }
     }
 
-    if (loading) return <div className="p-8 text-gray-600 dark:text-gray-300">Cargando configuración...</div>;
+    if (loading) return <SkeletonRows rows={4} />;
 
     return (
         <div className="max-w-4xl">
             <div className="mb-6">
-                <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">Configuración de Estados</h2>
-                <p className="text-gray-500 dark:text-gray-400 text-sm">Define los estados disponibles para las acciones, sus colores y su tipo.</p>
+                <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
+                    Configuración de Estados
+                </h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Define los estados disponibles para las acciones, sus colores y su automatismo.
+                </p>
             </div>
 
-            <div className="space-y-3 mb-6">
+            {remoteChanged && (
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-200">
+                    <p>
+                        La configuración cambió en otro dispositivo. Si guardas, sobrescribirás esos
+                        cambios.
+                    </p>
+                    <button
+                        type="button"
+                        onClick={discardLocalChanges}
+                        className="btn-secondary btn-sm"
+                    >
+                        Descartar mis cambios y recargar
+                    </button>
+                </div>
+            )}
+
+            <div className="mb-6 space-y-3">
                 {statuses.map((status, index) => (
-                    <div key={status.id} className="flex items-center gap-3 bg-white dark:bg-gray-900 p-4 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
-                        <GripVertical className="w-5 h-5 text-gray-300 dark:text-gray-500" />
-                        <span className="text-gray-400 dark:text-gray-500 text-sm font-mono w-6">{index + 1}</span>
+                    <div
+                        key={status.id}
+                        className="card flex flex-wrap items-center gap-3 p-3 md:p-4"
+                    >
+                        <span className="w-5 text-center font-mono text-sm text-gray-400 dark:text-gray-500">
+                            {index + 1}
+                        </span>
                         <input
                             type="color"
                             value={status.color}
                             onChange={(e) => updateStatus(status.id, "color", e.target.value)}
-                            className="w-10 h-10 rounded cursor-pointer border-0"
+                            className="h-10 w-10 flex-shrink-0 cursor-pointer rounded border-0 bg-transparent p-0"
+                            aria-label={`Color del estado ${status.label}`}
                         />
                         <input
                             type="text"
                             value={status.label}
                             onChange={(e) => updateStatus(status.id, "label", e.target.value)}
-                            className="flex-1 border border-gray-300 dark:border-gray-700 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none dark:bg-gray-900 dark:text-gray-100"
+                            className="input min-w-[10rem] flex-1"
+                            aria-label={`Nombre del estado ${index + 1}`}
                         />
                         <select
                             value={status.type || "none"}
                             onChange={(e) => updateStatus(status.id, "type", e.target.value)}
-                            className="border border-gray-300 dark:border-gray-700 rounded px-2 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none dark:bg-gray-900 dark:text-gray-100"
+                            className="input min-w-[13rem] flex-1"
+                            aria-label={`Automatismo del estado ${status.label}`}
                         >
-                            <option value="none">Sin tipo</option>
-                            <option value="start">📅 Inicio</option>
-                            <option value="end">🏁 Fin</option>
+                            {TYPE_OPTIONS.map((opt) => (
+                                <option key={opt.value} value={opt.value}>
+                                    {opt.label}
+                                </option>
+                            ))}
                         </select>
-                        <div
-                            className="px-3 py-1 rounded-full text-xs font-semibold text-white whitespace-nowrap"
-                            style={{ backgroundColor: status.color }}
-                        >
-                            {status.label}
-                        </div>
+                        <StatusPill status={status} />
                         <button
-                            onClick={() => removeStatus(status.id)}
-                            className="text-red-400 hover:text-red-600 dark:text-red-300 dark:hover:text-red-200 p-1"
+                            type="button"
+                            onClick={() => removeStatus(status)}
+                            className="btn-icon btn-ghost text-red-500 dark:text-red-400"
+                            aria-label={`Eliminar estado ${status.label}`}
                         >
-                            <Trash2 className="w-4 h-4" />
+                            <Trash2 className="h-4 w-4" />
                         </button>
                     </div>
                 ))}
             </div>
 
-            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 mb-6 text-sm text-blue-700 dark:text-blue-200">
+            <div className="mb-6 rounded-lg border border-brand-200 bg-brand-50 p-3 text-sm text-brand-700 dark:border-brand-800 dark:bg-brand-900/20 dark:text-brand-200">
                 <strong>Tipos de estado:</strong>
-                <ul className="mt-1 ml-4 list-disc">
-                    <li><strong>Inicio:</strong> Al seleccionar este estado, se rellena automáticamente la fecha de inicio de la acción.</li>
-                    <li><strong>Fin:</strong> Al seleccionar este estado, se rellena automáticamente la fecha fin real (solo si estaba vacía).</li>
-                    <li><strong>Sin tipo:</strong> No modifica ninguna fecha automáticamente.</li>
+                <ul className="ml-4 mt-1 list-disc space-y-0.5">
+                    <li>
+                        <strong>Inicia acción:</strong> al seleccionarlo se rellena automáticamente la
+                        fecha de inicio de la acción.
+                    </li>
+                    <li>
+                        <strong>Finaliza acción:</strong> al seleccionarlo se rellena la fecha fin real
+                        (solo si estaba vacía).
+                    </li>
+                    <li>
+                        <strong>Cancelado / Descartado:</strong> las acciones con este estado no cuentan
+                        en el progreso del proyecto.
+                    </li>
+                    <li>
+                        <strong>Sin automatismo:</strong> no modifica ninguna fecha automáticamente.
+                    </li>
                 </ul>
             </div>
 
-            <div className="flex justify-between">
-                <button
-                    onClick={addStatus}
-                    className="flex items-center gap-2 px-4 py-2 text-blue-600 dark:text-blue-300 border border-blue-300 dark:border-blue-700 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition"
-                >
-                    <Plus className="w-4 h-4" />
-                    Añadir Estado
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <button type="button" onClick={addStatus} className="btn-secondary">
+                    <Plus className="h-4 w-4" />
+                    Añadir estado
                 </button>
 
                 <button
+                    type="button"
                     onClick={handleSave}
-                    disabled={saving}
-                    className="px-6 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+                    disabled={saving || !dirty}
+                    className="btn-primary"
                 >
-                    {saving ? "Guardando..." : "Guardar Cambios"}
+                    {saving ? "Guardando..." : "Guardar cambios"}
                 </button>
             </div>
         </div>

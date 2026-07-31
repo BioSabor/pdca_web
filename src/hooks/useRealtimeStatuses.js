@@ -1,27 +1,14 @@
-import { useState, useEffect } from "react";
 import { subscriptions } from "../services/projectService";
+import useRealtimeSubscription from "./useRealtimeSubscription";
 
 /**
- * Hook para suscribirse a la configuración de estados en tiempo real.
- * @returns {{ statuses: Array, loading: boolean }}
+ * Estados configurados en tiempo real (con defaults en memoria si no existen).
+ * @returns {{ statuses: Array, loading: boolean, error: Error|null, retry: Function }}
  */
 export default function useRealtimeStatuses() {
-    const [statuses, setStatuses] = useState([]);
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        let firstUpdate = true;
-
-        const unsubscribe = subscriptions.subscribeToStatuses((data) => {
-            setStatuses(data);
-            if (firstUpdate) {
-                setLoading(false);
-                firstUpdate = false;
-            }
-        });
-
-        return () => unsubscribe();
-    }, []);
-
-    return { statuses, loading };
+    const { data, loading, error, retry } = useRealtimeSubscription(
+        (onData, onError) => subscriptions.subscribeToStatuses(onData, onError),
+        []
+    );
+    return { statuses: data, loading, error, retry };
 }

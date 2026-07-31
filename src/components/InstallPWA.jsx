@@ -1,11 +1,13 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Download, X } from "lucide-react";
+import Modal from "./ui/Modal";
 
 export default function InstallPWA() {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [showBanner, setShowBanner] = useState(false);
   const [isIos, setIsIos] = useState(false);
   const [showIosModal, setShowIosModal] = useState(false);
+  const bannerRef = useRef(null);
 
   useEffect(() => {
     // Si ya está instalada como standalone, no mostrar nada
@@ -41,6 +43,19 @@ export default function InstallPWA() {
     return () => window.removeEventListener("beforeinstallprompt", handler);
   }, []);
 
+  // Publicar la altura del banner para que el layout reserve espacio y no
+  // tape el contenido inferior de las páginas
+  useEffect(() => {
+    const root = document.documentElement;
+    if (showBanner && bannerRef.current) {
+      const height = bannerRef.current.offsetHeight;
+      root.style.setProperty("--pwa-banner-h", `${height}px`);
+    } else {
+      root.style.removeProperty("--pwa-banner-h");
+    }
+    return () => root.style.removeProperty("--pwa-banner-h");
+  }, [showBanner]);
+
   const handleInstall = async () => {
     if (isIos) {
       setShowIosModal(true);
@@ -64,65 +79,60 @@ export default function InstallPWA() {
   return (
     <>
       {/* Banner inferior */}
-      <div className="fixed bottom-0 left-0 right-0 bg-blue-600 text-white px-4 py-3 flex items-center justify-between z-[9999] shadow-[0_-2px_10px_rgba(0,0,0,0.2)] gap-3">
-        <div className="flex items-center gap-3 flex-1 min-w-0">
-          <Download className="w-6 h-6 flex-shrink-0" />
-          <div className="flex flex-col leading-tight min-w-0">
-            <span className="font-semibold text-sm truncate">Instalar PDCA BioSabor</span>
-            <span className="text-xs opacity-85 truncate">Acceso directo en tu pantalla de inicio</span>
+      <div
+        ref={bannerRef}
+        className="fixed bottom-0 left-0 right-0 z-banner flex items-center justify-between gap-3 bg-brand-600 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] text-white shadow-[0_-2px_10px_rgba(0,0,0,0.2)]"
+      >
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <Download className="h-6 w-6 flex-shrink-0" />
+          <div className="flex min-w-0 flex-col leading-tight">
+            <span className="truncate text-sm font-semibold">Instalar PDCA BioSabor</span>
+            <span className="truncate text-xs opacity-85">Acceso directo en tu pantalla de inicio</span>
           </div>
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="flex flex-shrink-0 items-center gap-2">
           <button
             onClick={handleInstall}
-            className="bg-white text-blue-600 border-none rounded-lg px-4 py-2 font-bold cursor-pointer text-sm hover:bg-blue-50 transition"
+            className="rounded-lg bg-white px-4 py-2 text-sm font-bold text-brand-600 transition-colors hover:bg-brand-50"
           >
             Instalar
           </button>
           <button
             onClick={handleDismiss}
-            className="bg-transparent border-none text-white cursor-pointer p-1 opacity-80 hover:opacity-100 transition"
+            aria-label="Descartar aviso de instalación"
+            className="p-2 opacity-80 transition-opacity hover:opacity-100"
           >
-            <X className="w-5 h-5" />
+            <X className="h-5 w-5" />
           </button>
         </div>
       </div>
 
       {/* Modal instrucciones iOS */}
-      {showIosModal && (
-        <div
-          className="fixed inset-0 bg-black/60 flex items-center justify-center z-[10000] p-4"
-          onClick={handleDismiss}
-        >
-          <div
-            className="bg-white dark:bg-gray-800 rounded-xl p-6 max-w-sm w-full shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-4 flex items-center gap-2">
-              📱 Instalar en iPhone/iPad
-            </h3>
-            <ol className="space-y-3 text-sm text-gray-700 dark:text-gray-200 pl-5 list-decimal">
-              <li>
-                Pulsa el botón <strong>Compartir</strong>{" "}
-                <span className="text-lg">⬆️</span> en la barra de Safari
-              </li>
-              <li>
-                Selecciona <strong>"Añadir a pantalla de inicio"</strong>{" "}
-                <span className="text-lg">➕</span>
-              </li>
-              <li>
-                Pulsa <strong>"Añadir"</strong> en la esquina superior derecha
-              </li>
-            </ol>
-            <button
-              onClick={handleDismiss}
-              className="w-full mt-5 py-2.5 bg-blue-600 text-white border-none rounded-lg font-bold cursor-pointer text-sm hover:bg-blue-700 transition"
-            >
-              Entendido
-            </button>
-          </div>
-        </div>
-      )}
+      <Modal
+        open={showIosModal}
+        onClose={handleDismiss}
+        title="Instalar en iPhone/iPad"
+        size="sm"
+        footer={
+          <button onClick={handleDismiss} className="btn-primary w-full">
+            Entendido
+          </button>
+        }
+      >
+        <ol className="list-decimal space-y-3 pl-5 text-sm text-gray-700 dark:text-gray-200">
+          <li>
+            Pulsa el botón <strong>Compartir</strong> <span className="text-lg">⬆️</span> en la barra
+            de Safari
+          </li>
+          <li>
+            Selecciona <strong>&quot;Añadir a pantalla de inicio&quot;</strong>{" "}
+            <span className="text-lg">➕</span>
+          </li>
+          <li>
+            Pulsa <strong>&quot;Añadir&quot;</strong> en la esquina superior derecha
+          </li>
+        </ol>
+      </Modal>
     </>
   );
 }

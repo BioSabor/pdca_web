@@ -1,0 +1,140 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ==================== Helpers ====================
+    function signedIn() {
+      return request.auth != null;
+    }
+    function me() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    function isAdmin() {
+      return signedIn() && me().role == 'admin';
+    }
+    // Usuario autenticado, con perfil y no desactivado
+    function isActive() {
+      return signedIn() && me().get('disabled', false) == false;
+    }
+    function isProjectMember(projectId) {
+      let p = get(/databases/$(database)/documents/projects/$(projectId)).data;
+      return p.createdBy == request.auth.uid || request.auth.uid in p.assignedUsers;
+    }
+
+    // ==================== Usuarios ====================
+    match /users/{uid} {
+      // Los selectores de asignación de toda la app leen la colección
+      allow read: if isActive();
+      allow create: if isAdmin()
+        || (signedIn()
+            && request.auth.uid == uid
+            && request.resource.data.role == 'user'
+            && request.resource.data.get('disabled', false) == false);
+      // ANTI-AUTOPROMOCIÓN: nadie salvo un admin puede cambiar role/disabled
+      allow update: if isAdmin()
+        || (isActive()
+            && request.auth.uid == uid
+            && request.resource.data.role == resource.data.role
+            && request.resource.data.get('disabled', false) == resource.data.get('disabled', false));
+      allow delete: if isAdmin();
+    }
+
+    // ==================== Proyectos ====================
+    match /projects/{projectId} {
+      allow read: if isActive() && (isAdmin()
+        || resource.data.createdBy == request.auth.uid
+        || request.auth.uid in resource.data.assignedUsers);
+      allow create: if isActive() && request.resource.data.createdBy == request.auth.uid;
+      // Miembros solo pueden tocar el contador de la transacción de alta de
+      // acciones; edición completa: creador o admin
+      allow update: if isActive() && (isAdmin()
+        || resource.data.createdBy == request.auth.uid
+        || (request.auth.uid in resource.data.assignedUsers
+            && request.resource.data.diff(resource.data).affectedKeys()
+                 .hasOnly(['lastActionId', 'updatedAt'])));
+      allow delete: if isActive() && (isAdmin() || resource.data.createdBy == request.auth.uid);
+
+      match /actions/{actionId} {
+        allow read, create, update, delete: if isActive()
+          && (isAdmin() || isProjectMember(projectId));
+
+        match /comments/{commentId} {
+          allow read: if isActive() && (isAdmin() || isProjectMember(projectId));
+          allow create: if isActive() && (isAdmin() || isProjectMember(projectId))
+            && request.resource.data.authorId == request.auth.uid;
+          allow update: if isActive()
+            && (isAdmin() || resource.data.authorId == request.auth.uid);
+          // delete también para miembros: el borrado en cascada de una acción
+          // (permitido a cualquier miembro) arrastra sus comentarios
+          allow delete: if isActive()
+            && (isAdmin()
+                || resource.data.authorId == request.auth.uid
+                || isProjectMember(projectId));
+        }
+      }
+
+      // Registro de actividad: append-only para usuarios. El delete lo
+      // necesita además el creador para el borrado profundo del proyecto.
+      match /activity/{entryId} {
+        allow read, create: if isActive() && (isAdmin() || isProjectMember(projectId));
+        allow update: if isAdmin();
+        allow delete: if isAdmin()
+          || (isActive()
+              && get(/databases/$(database)/documents/projects/$(projectId)).data.createdBy == request.auth.uid);
+      }
+    }
+
+    // collectionGroup("actions"): admin ve todo (Informes/Calendario);
+    // un usuario solo puede ejecutar la query filtrada por su propia
+    // asignación (Mis Tareas: where assignedUsers array-contains uid)
+    match /{path=**}/actions/{actionId} {
+      allow read: if isActive()
+        && (isAdmin() || request.auth.uid in resource.data.assignedUsers);
+    }
+    match /{path=**}/comments/{commentId} {
+      allow read: if isAdmin();
+    }
+
+    // ==================== Adjuntos ====================
+    match /attachments/{attachmentId} {
+      // Las queries del cliente siempre filtran por projectId
+      allow read: if isActive()
+        && (isAdmin() || isProjectMember(resource.data.projectId));
+      allow create: if isActive()
+        && request.resource.data.uploadedBy == request.auth.uid
+        && (isAdmin() || isProjectMember(request.resource.data.projectId));
+      allow update: if false;
+      allow delete: if isActive()
+        && (isAdmin() || isProjectMember(resource.data.projectId));
+    }
+
+    // ==================== Configuración global ====================
+    match /settings/{docId} {
+      allow read: if isActive();
+      allow write: if isAdmin();
+    }
+
+    // ==================== Notificaciones ====================
+    match /notifications/{notificationId} {
+      // Solo el destinatario lee/gestiona las suyas
+      allow read, delete: if signedIn() && request.auth.uid == resource.data.recipientId;
+      // El update solo puede marcar como leída
+      allow update: if signedIn()
+        && request.auth.uid == resource.data.recipientId
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+      // Cualquier usuario activo puede notificar a otro (fan-out client-side),
+      // firmando como actor
+      allow create: if isActive()
+        && request.resource.data.actorId == request.auth.uid
+        && request.resource.data.read == false;
+    }
+
+    // ==================== Plantillas ====================
+    match /templates/{templateId} {
+      allow read: if isActive();
+      allow create: if isActive() && request.resource.data.createdBy == request.auth.uid;
+      allow update, delete: if isActive()
+        && (isAdmin() || resource.data.createdBy == request.auth.uid);
+    }
+  }
+}

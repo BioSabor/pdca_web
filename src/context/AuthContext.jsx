@@ -14,15 +14,45 @@ export function useAuth() {
     return useContext(AuthContext);
 }
 
+// Objeto de usuario plano y estable (no se hace spread del User de Firebase:
+// perdería los métodos del prototipo y cambia de identidad en cada snapshot)
+function buildCurrentUser(authUser, profile, profileError = false) {
+    return {
+        uid: authUser.uid,
+        email: authUser.email,
+        ...profile,
+        displayName: profile?.displayName ?? authUser.displayName ?? null,
+        role: profile?.role ?? "user",
+        disabled: profile?.disabled ?? false,
+        profileError
+    };
+}
+
+function shallowEqual(a, b) {
+    if (a === b) return true;
+    if (!a || !b) return false;
+    const keysA = Object.keys(a);
+    const keysB = Object.keys(b);
+    if (keysA.length !== keysB.length) return false;
+    return keysA.every((k) => a[k] === b[k]);
+}
+
 export function AuthProvider({ children }) {
-    const [currentUser, setCurrentUser] = useState(null);
+    const [currentUser, setCurrentUserState] = useState(null);
     const [initializing, setInitializing] = useState(true);
     const [authenticating, setAuthenticating] = useState(false);
     const userProfileUnsub = useRef(null);
+    const currentUserRef = useRef(null);
+
+    function setCurrentUser(next) {
+        // Guardia de identidad: los snapshots repetidos no re-renderizan la app
+        if (shallowEqual(currentUserRef.current, next)) return;
+        currentUserRef.current = next;
+        setCurrentUserState(next);
+    }
 
     // Suscribirse al perfil del usuario en Firestore en tiempo real
     function subscribeToUserProfile(authUser, onFirstLoad) {
-        // Limpiar suscripción anterior
         if (userProfileUnsub.current) {
             userProfileUnsub.current();
             userProfileUnsub.current = null;
@@ -34,17 +64,27 @@ export function AuthProvider({ children }) {
         }
 
         let firstSnapshot = true;
-        userProfileUnsub.current = subscriptions.subscribeToUser(authUser.uid, (profileData) => {
-            if (profileData) {
-                setCurrentUser({ ...authUser, ...profileData });
-            } else {
-                setCurrentUser({ ...authUser, role: "user" });
-            }
+        function resolveFirst() {
             if (firstSnapshot) {
                 firstSnapshot = false;
                 onFirstLoad?.();
             }
-        });
+        }
+
+        userProfileUnsub.current = subscriptions.subscribeToUser(
+            authUser.uid,
+            (profileData) => {
+                setCurrentUser(buildCurrentUser(authUser, profileData));
+                resolveFirst();
+            },
+            (error) => {
+                // Un fallo leyendo el perfil NUNCA deja la app en blanco:
+                // se resuelve initializing con un perfil mínimo y se marca el error
+                console.error("Error al cargar el perfil de usuario:", error);
+                setCurrentUser(buildCurrentUser(authUser, null, true));
+                resolveFirst();
+            }
+        );
     }
 
     async function signup(email, password) {
@@ -59,9 +99,7 @@ export function AuthProvider({ children }) {
     async function login(email, password) {
         try {
             setAuthenticating(true);
-            const credential = await signInWithEmailAndPassword(auth, email, password);
-            // La suscripción se activará via onAuthStateChanged
-            return credential;
+            return await signInWithEmailAndPassword(auth, email, password);
         } finally {
             setAuthenticating(false);
         }
@@ -70,7 +108,6 @@ export function AuthProvider({ children }) {
     async function logout() {
         try {
             setAuthenticating(true);
-            // Limpiar suscripción al perfil
             if (userProfileUnsub.current) {
                 userProfileUnsub.current();
                 userProfileUnsub.current = null;
@@ -84,10 +121,8 @@ export function AuthProvider({ children }) {
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (user) => {
             if (user) {
-                // No marcar initializing=false hasta que el perfil se cargue
                 subscribeToUserProfile(user, () => setInitializing(false));
             } else {
-                // Limpiar suscripción al perfil
                 if (userProfileUnsub.current) {
                     userProfileUnsub.current();
                     userProfileUnsub.current = null;
@@ -103,6 +138,7 @@ export function AuthProvider({ children }) {
                 userProfileUnsub.current();
             }
         };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const value = {

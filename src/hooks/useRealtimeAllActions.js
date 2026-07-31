@@ -1,28 +1,16 @@
-import { useState, useEffect } from "react";
 import { subscriptions } from "../services/projectService";
+import useRealtimeSubscription from "./useRealtimeSubscription";
 
 /**
- * Hook para suscribirse a TODAS las acciones (collectionGroup) en tiempo real.
- * Usado por Reports y Calendar.
- * @returns {{ allActions: Array, loading: boolean }}
+ * TODAS las acciones de la organización (collectionGroup). Pensado para
+ * admins; usar {enabled} para no abrir la query cuando no toca.
+ * @returns {{ allActions: Array, loading: boolean, error: Error|null, retry: Function }}
  */
-export default function useRealtimeAllActions() {
-    const [allActions, setAllActions] = useState([]);
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        let firstUpdate = true;
-
-        const unsubscribe = subscriptions.subscribeToAllActions((data) => {
-            setAllActions(data);
-            if (firstUpdate) {
-                setLoading(false);
-                firstUpdate = false;
-            }
-        });
-
-        return () => unsubscribe();
-    }, []);
-
-    return { allActions, loading };
+export default function useRealtimeAllActions({ enabled = true } = {}) {
+    const { data, loading, error, retry } = useRealtimeSubscription(
+        (onData, onError) => subscriptions.subscribeToAllActions(onData, onError),
+        [],
+        { enabled }
+    );
+    return { allActions: data, loading, error, retry };
 }

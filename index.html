@@ -7,26 +7,28 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>PDCA BioSabor</title>
   <link rel="manifest" href="/manifest.json" />
-  <meta name="theme-color" content="#2563eb" />
+  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#111827" media="(prefers-color-scheme: dark)" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="PDCA BioSabor" />
   <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
+  <script>
+    // Aplica el tema guardado ANTES del primer pintado para evitar el
+    // parpadeo claro/oscuro al recargar
+    (function () {
+      try {
+        if (localStorage.getItem("pdca_theme") === "dark") {
+          document.documentElement.classList.add("dark");
+        }
+      } catch (e) { /* localStorage no disponible */ }
+    })();
+  </script>
 </head>
 
 <body>
   <div id="root"></div>
   <script type="module" src="/src/main.jsx"></script>
-  <script>
-    if ("serviceWorker" in navigator) {
-      window.addEventListener("load", () => {
-        navigator.serviceWorker
-          .register("/sw.js")
-          .then((reg) => console.log("SW registrado:", reg.scope))
-          .catch((err) => console.error("SW error:", err));
-      });
-    }
-  </script>
 </body>
 
 </html>

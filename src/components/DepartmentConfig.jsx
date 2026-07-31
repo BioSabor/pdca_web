@@ -1,97 +1,173 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { departmentService } from "../services/projectService";
 import { Plus, Trash2, Building2 } from "lucide-react";
 import useRealtimeDepartments from "../hooks/useRealtimeDepartments";
+import EmptyState from "./ui/EmptyState";
+import { SkeletonRows } from "./ui/Skeleton";
+import { useToast } from "./ui/Toast";
+import { useConfirm } from "./ui/ConfirmDialog";
 
 export default function DepartmentConfig() {
     const { departments: realtimeDepartments, loading } = useRealtimeDepartments();
+    const toast = useToast();
+    const confirm = useConfirm();
+
     const [departments, setDepartments] = useState([]);
     const [saving, setSaving] = useState(false);
+    const [dirty, setDirty] = useState(false);
+    const [remoteChanged, setRemoteChanged] = useState(false);
+    const dirtyRef = useRef(false);
 
-    // Sincronizar estado local con datos en tiempo real (solo si no estamos guardando)
+    function markDirty() {
+        dirtyRef.current = true;
+        setDirty(true);
+    }
+
+    function clearDirty() {
+        dirtyRef.current = false;
+        setDirty(false);
+        setRemoteChanged(false);
+    }
+
+    // Sincronizar con el snapshot remoto solo si no hay ediciones locales.
+    // Si llega un snapshot con cambios locales pendientes, se avisa sin sobrescribir.
     useEffect(() => {
-        if (!saving) {
+        if (loading || saving) return;
+        if (dirtyRef.current) {
+            setRemoteChanged(true);
+        } else {
             setDepartments(realtimeDepartments);
+            setRemoteChanged(false);
         }
-    }, [realtimeDepartments, saving]);
+    }, [realtimeDepartments, loading, saving]);
+
+    function discardLocalChanges() {
+        setDepartments(realtimeDepartments);
+        clearDirty();
+    }
 
     function addDepartment() {
         const newId = "dept_" + Date.now();
-        setDepartments([...departments, { id: newId, name: "Nuevo Departamento" }]);
+        markDirty();
+        setDepartments((prev) => [...prev, { id: newId, name: "Nuevo Departamento" }]);
     }
 
-    function removeDepartment(id) {
-        setDepartments(departments.filter(d => d.id !== id));
+    async function removeDepartment(dept) {
+        const ok = await confirm({
+            title: "Eliminar departamento",
+            message: `Se eliminará el departamento «${dept.name}». Los proyectos que lo usen quedarán sin departamento válido. El cambio se aplicará al guardar.`,
+            confirmLabel: "Eliminar",
+            tone: "danger",
+        });
+        if (!ok) return;
+        markDirty();
+        setDepartments((prev) => prev.filter((d) => d.id !== dept.id));
     }
 
     function updateDepartment(id, name) {
-        setDepartments(departments.map(d => d.id === id ? { ...d, name } : d));
+        markDirty();
+        setDepartments((prev) => prev.map((d) => (d.id === id ? { ...d, name } : d)));
     }
 
     async function handleSave() {
         setSaving(true);
         try {
             await departmentService.updateDepartments(departments);
-            alert("Departamentos guardados correctamente");
+            clearDirty();
+            toast.success("Departamentos guardados correctamente");
         } catch (error) {
-            alert("Error al guardar departamentos");
+            console.error("Error al guardar departamentos:", error);
+            toast.error("Error al guardar los departamentos");
         } finally {
             setSaving(false);
         }
     }
 
-    if (loading) return <div className="p-8 text-gray-600 dark:text-gray-300">Cargando departamentos...</div>;
+    if (loading) return <SkeletonRows rows={4} />;
 
     return (
         <div className="max-w-4xl">
             <div className="mb-6">
-                <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">Gestión de Departamentos</h2>
-                <p className="text-gray-500 dark:text-gray-400 text-sm">Define las áreas o departamentos de la empresa para categorizar proyectos.</p>
+                <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
+                    Gestión de Departamentos
+                </h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Define las áreas o departamentos de la empresa para categorizar proyectos.
+                </p>
             </div>
 
-            <div className="space-y-3 mb-6">
+            {remoteChanged && (
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-200">
+                    <p>
+                        La configuración cambió en otro dispositivo. Si guardas, sobrescribirás esos
+                        cambios.
+                    </p>
+                    <button
+                        type="button"
+                        onClick={discardLocalChanges}
+                        className="btn-secondary btn-sm"
+                    >
+                        Descartar mis cambios y recargar
+                    </button>
+                </div>
+            )}
+
+            <div className="mb-6 space-y-3">
                 {departments.length === 0 && (
-                    <div className="text-center py-8 bg-gray-50 dark:bg-gray-800 rounded-lg text-gray-400 dark:text-gray-500">
-                        No hay departamentos definidos. Añade uno para empezar.
-                    </div>
+                    <EmptyState
+                        icon={Building2}
+                        title="No hay departamentos definidos"
+                        description="Añade uno para empezar a categorizar los proyectos."
+                        action={
+                            <button type="button" onClick={addDepartment} className="btn-secondary">
+                                <Plus className="h-4 w-4" />
+                                Añadir departamento
+                            </button>
+                        }
+                    />
                 )}
                 {departments.map((dept, index) => (
-                    <div key={dept.id} className="flex items-center gap-3 bg-white dark:bg-gray-900 p-4 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
-                        <Building2 className="w-5 h-5 text-gray-300 dark:text-gray-500" />
-                        <span className="text-gray-400 dark:text-gray-500 text-sm font-mono w-6">{index + 1}</span>
+                    <div
+                        key={dept.id}
+                        className="card flex flex-wrap items-center gap-3 p-3 md:p-4"
+                    >
+                        <Building2 className="h-5 w-5 flex-shrink-0 text-gray-300 dark:text-gray-500" />
+                        <span className="w-5 text-center font-mono text-sm text-gray-400 dark:text-gray-500">
+                            {index + 1}
+                        </span>
                         <input
                             type="text"
                             value={dept.name}
                             onChange={(e) => updateDepartment(dept.id, e.target.value)}
-                            className="flex-1 border border-gray-300 dark:border-gray-700 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none dark:bg-gray-900 dark:text-gray-100"
+                            className="input min-w-[10rem] flex-1"
                             placeholder="Nombre del departamento"
+                            aria-label={`Nombre del departamento ${index + 1}`}
                         />
                         <button
-                            onClick={() => removeDepartment(dept.id)}
-                            className="text-red-400 hover:text-red-600 dark:text-red-300 dark:hover:text-red-200 p-1"
-                            title="Eliminar departamento"
+                            type="button"
+                            onClick={() => removeDepartment(dept)}
+                            className="btn-icon btn-ghost text-red-500 dark:text-red-400"
+                            aria-label={`Eliminar departamento ${dept.name}`}
                         >
-                            <Trash2 className="w-4 h-4" />
+                            <Trash2 className="h-4 w-4" />
                         </button>
                     </div>
                 ))}
             </div>
 
-            <div className="flex justify-between">
-                <button
-                    onClick={addDepartment}
-                    className="flex items-center gap-2 px-4 py-2 text-blue-600 dark:text-blue-300 border border-blue-300 dark:border-blue-700 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition"
-                >
-                    <Plus className="w-4 h-4" />
-                    Añadir Departamento
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <button type="button" onClick={addDepartment} className="btn-secondary">
+                    <Plus className="h-4 w-4" />
+                    Añadir departamento
                 </button>
 
                 <button
+                    type="button"
                     onClick={handleSave}
-                    disabled={saving}
-                    className="px-6 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+                    disabled={saving || !dirty}
+                    className="btn-primary"
                 >
-                    {saving ? "Guardando..." : "Guardar Cambios"}
+                    {saving ? "Guardando..." : "Guardar cambios"}
                 </button>
             </div>
         </div>
