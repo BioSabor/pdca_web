@@ -26,6 +26,14 @@ export default defineConfig({
       },
     }),
   ],
+  server: {
+    // 5173/5174 los ocupan otras instancias; si 5180 también estuviera en uso,
+    // Vite busca el siguiente libre (strictPort desactivado por defecto)
+    port: 5180,
+  },
+  preview: {
+    port: 4174,
+  },
   build: {
     rollupOptions: {
       output: {
