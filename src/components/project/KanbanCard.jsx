@@ -8,9 +8,10 @@ export default function KanbanCard({
     action,
     getUserName,
     attachmentCount = 0,
-    onDragStart,
-    onDragEnd,
+    cardProps,
+    handleProps,
     dragging,
+    preview,
     highlight,
 }) {
     const phase = getPhaseConfig(action.phase);
@@ -20,17 +21,32 @@ export default function KanbanCard({
 
     return (
         <div
-            draggable
-            onDragStart={onDragStart}
-            onDragEnd={onDragEnd}
+            data-kanban-card={action.id}
+            {...cardProps}
             className={cn(
-                "card cursor-grab space-y-2 p-3 active:cursor-grabbing",
-                dragging && "opacity-40",
+                "card touch-manipulation space-y-2 p-3",
+                cardProps && "cursor-grab active:cursor-grabbing",
+                dragging && "opacity-30",
+                preview && "pointer-events-none rotate-1 scale-[1.02] shadow-card-hover ring-2 ring-brand-500",
                 highlight && "ring-2 ring-brand-500"
             )}
         >
             <div className="flex items-start gap-1.5">
-                <GripVertical className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-gray-300 dark:text-gray-600" aria-hidden="true" />
+                <span
+                    {...handleProps}
+                    role={handleProps ? "button" : undefined}
+                    tabIndex={handleProps ? -1 : undefined}
+                    aria-label={handleProps ? "Arrastrar tarjeta" : undefined}
+                    title={handleProps ? "Arrastra para cambiar de columna" : undefined}
+                    className={cn(
+                        "-my-1 -ml-1 flex flex-shrink-0 items-center justify-center rounded-lg py-1 text-gray-300 dark:text-gray-600",
+                        handleProps
+                            ? "w-7 cursor-grab touch-none active:cursor-grabbing active:bg-surface-2 active:text-brand-500 sm:w-5"
+                            : "w-5"
+                    )}
+                >
+                    <GripVertical className="h-4 w-4" aria-hidden="true" />
+                </span>
                 <p className="min-w-0 flex-1 text-sm text-gray-800 dark:text-gray-100">
                     {action.seqId ? (
                         <span className="mr-1 text-xs text-gray-400 dark:text-gray-500">#{action.seqId}</span>

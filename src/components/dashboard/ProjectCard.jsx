@@ -92,14 +92,14 @@ export default function ProjectCard({
                         <div className="min-w-0 text-[11px] leading-tight text-gray-500 dark:text-gray-400">
                             <span
                                 className={cn(
-                                    "block font-medium",
+                                    "block truncate font-medium",
                                     minePending > 0 && "text-brand-600 dark:text-brand-300"
                                 )}
                                 title="Acciones abiertas asignadas a ti"
                             >
                                 {mineLabel}
                             </span>
-                            <span className="block" title="Acciones abiertas del proyecto">
+                            <span className="block truncate" title="Acciones abiertas del proyecto">
                                 {openLabel}
                             </span>
                         </div>

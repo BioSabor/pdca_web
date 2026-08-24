@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, Link, useSearchParams } from "react-router-dom";
-import { Table, ChartGantt, SquareKanban } from "lucide-react";
+import { Table, ChartGantt, SquareKanban, FolderOpen } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
 import useRealtimeProject from "../hooks/useRealtimeProject";
@@ -28,6 +28,7 @@ import NewActionForm from "../components/project/NewActionForm";
 import GanttView from "../components/project/GanttView";
 import KanbanBoard from "../components/project/KanbanBoard";
 import ActivityPanel from "../components/project/ActivityPanel";
+import ProjectDocuments from "../components/project/ProjectDocuments";
 import SaveAsTemplateModal from "../components/templates/SaveAsTemplateModal";
 
 import { actionEvents } from "../services/actionEvents";
@@ -38,10 +39,16 @@ import { formatShortDate, formatTimestampDate, todayLocalISO } from "../lib/date
 import { getPriorityConfig } from "../lib/priority";
 import { getPhaseConfig } from "../lib/pdca";
 
+// Contenedor centrado. Más ancho que el resto de páginas porque el Kanban y la
+// tabla aprovechan el espacio, pero acotado para que en monitores grandes no
+// quede todo pegado al borde izquierdo.
+const PAGE_CLASS = "mx-auto w-full max-w-[96rem]";
+
 const VIEW_OPTIONS = [
     { id: "table", label: "Tabla", icon: Table },
     { id: "kanban", label: "Kanban", icon: SquareKanban },
     { id: "gantt", label: "Gantt", icon: ChartGantt },
+    { id: "docs", label: "Documentos", icon: FolderOpen },
 ];
 
 export default function ProjectDetail() {
@@ -328,7 +335,7 @@ export default function ProjectDetail() {
 
     if (loading) {
         return (
-            <div>
+            <div className={PAGE_CLASS}>
                 <Skeleton className="mb-3 h-8 w-1/3" />
                 <Skeleton className="mb-6 h-4 w-2/3" />
                 <SkeletonRows rows={6} />
@@ -351,7 +358,7 @@ export default function ProjectDetail() {
     }
 
     return (
-        <div>
+        <div className={PAGE_CLASS}>
             <ProjectHeader
                 project={project}
                 projectId={id}
@@ -378,9 +385,10 @@ export default function ProjectDetail() {
                 onNewAction={handleNewAction}
                 onShowActivity={() => setShowActivity(true)}
                 onSaveTemplate={isCreator ? () => setShowSaveTemplate(true) : undefined}
+                showFilterControls={view !== "docs"}
             />
 
-            {showFilters && (
+            {showFilters && view !== "docs" && (
                 <ActionFiltersBar
                     filtersApi={filtersApi}
                     userOptions={allUserOptions}
@@ -388,7 +396,14 @@ export default function ProjectDetail() {
                 />
             )}
 
-            {view === "gantt" ? (
+            {view === "docs" ? (
+                <ProjectDocuments
+                    projectId={id}
+                    currentUserId={uid}
+                    actorName={ctx.actorName}
+                    getUserName={getUserName}
+                />
+            ) : view === "gantt" ? (
                 <GanttView actions={filteredActions} statuses={statuses} />
             ) : view === "kanban" ? (
                 <KanbanBoard
@@ -476,14 +491,16 @@ export default function ProjectDetail() {
                 />
             )}
 
-            <div className="mt-4 flex items-center justify-between">
-                <div className="text-xs text-gray-400 dark:text-gray-500">
-                    {sortedActions.length} de {actions.length} acciones
+            {view !== "docs" && (
+                <div className="mt-4 flex items-center justify-between">
+                    <div className="text-xs text-gray-400 dark:text-gray-500">
+                        {sortedActions.length} de {actions.length} acciones
+                    </div>
+                    <button type="button" onClick={handleNewAction} className="btn-primary btn-sm">
+                        Nueva acción
+                    </button>
                 </div>
-                <button type="button" onClick={handleNewAction} className="btn-primary btn-sm">
-                    Nueva acción
-                </button>
-            </div>
+            )}
         </div>
     );
 }

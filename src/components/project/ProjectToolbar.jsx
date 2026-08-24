@@ -24,43 +24,50 @@ export default function ProjectToolbar({
     onNewAction,
     onShowActivity,
     onSaveTemplate,
+    // Vistas que no listan acciones (p. ej. documentación) ocultan
+    // filtros y selector de columnas: no aplican a lo que se está viendo.
+    showFilterControls = true,
 }) {
     return (
         <div className="mb-4 flex flex-wrap items-center gap-2">
-            <button
-                type="button"
-                onClick={onToggleFilters}
-                aria-expanded={showFilters}
-                className={cn(
-                    "btn-secondary btn-sm",
-                    (showFilters || activeFilterCount > 0) &&
-                        "border-brand-300 bg-brand-50 text-brand-700 hover:bg-brand-100 dark:border-brand-700 dark:bg-brand-900/30 dark:text-brand-200 dark:hover:bg-brand-900/50"
-                )}
-            >
-                <Filter className="h-4 w-4" />
-                <span className="hidden xs:inline">Filtros</span>
-                {activeFilterCount > 0 && (
-                    <span className="badge bg-brand-600 text-white">{activeFilterCount}</span>
-                )}
-            </button>
-            {activeFilterCount > 0 && (
-                <button
-                    type="button"
-                    onClick={onClearFilters}
-                    aria-label="Limpiar filtros"
-                    title="Limpiar filtros"
-                    className="btn-icon btn-ghost h-9 min-w-9"
-                >
-                    <X className="h-4 w-4" />
-                </button>
+            {showFilterControls && (
+                <>
+                    <button
+                        type="button"
+                        onClick={onToggleFilters}
+                        aria-expanded={showFilters}
+                        className={cn(
+                            "btn-secondary btn-sm",
+                            (showFilters || activeFilterCount > 0) &&
+                                "border-brand-300 bg-brand-50 text-brand-700 hover:bg-brand-100 dark:border-brand-700 dark:bg-brand-900/30 dark:text-brand-200 dark:hover:bg-brand-900/50"
+                        )}
+                    >
+                        <Filter className="h-4 w-4" />
+                        <span className="hidden xs:inline">Filtros</span>
+                        {activeFilterCount > 0 && (
+                            <span className="badge bg-brand-600 text-white">{activeFilterCount}</span>
+                        )}
+                    </button>
+                    {activeFilterCount > 0 && (
+                        <button
+                            type="button"
+                            onClick={onClearFilters}
+                            aria-label="Limpiar filtros"
+                            title="Limpiar filtros"
+                            className="btn-icon btn-ghost h-9 min-w-9"
+                        >
+                            <X className="h-4 w-4" />
+                        </button>
+                    )}
+                    <MultiCheckDropdown
+                        options={columnOptions}
+                        selected={visibleColumns}
+                        onChange={onColumnsChange}
+                        placeholder="Columnas"
+                        className="min-w-0 max-w-[9rem] sm:max-w-none"
+                    />
+                </>
             )}
-            <MultiCheckDropdown
-                options={columnOptions}
-                selected={visibleColumns}
-                onChange={onColumnsChange}
-                placeholder="Columnas"
-                className="min-w-0 max-w-[9rem] sm:max-w-none"
-            />
             <ViewSwitcher options={viewOptions} value={view} onChange={onViewChange} />
             <div className="ml-auto flex flex-wrap items-center gap-2">
                 {onShowActivity && (

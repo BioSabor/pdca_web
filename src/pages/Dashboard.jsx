@@ -9,6 +9,7 @@ import useRealtimeStatuses from "../hooks/useRealtimeStatuses";
 import useRealtimeUsers from "../hooks/useRealtimeUsers";
 import useRealtimeDepartments from "../hooks/useRealtimeDepartments";
 import ProjectCard from "../components/dashboard/ProjectCard";
+import { StatTile, WeekStat } from "../components/dashboard/StatTile";
 import { Skeleton, SkeletonCard } from "../components/ui/Skeleton";
 import EmptyState from "../components/ui/EmptyState";
 import ErrorState from "../components/ui/ErrorState";
@@ -17,7 +18,6 @@ import { useConfirm } from "../components/ui/ConfirmDialog";
 import { getStatusConfig } from "../lib/status";
 import { isClosedStatus, computeProgress } from "../lib/progress";
 import { isHighlighted } from "../lib/priority";
-import { withAlpha } from "../lib/color";
 import { normalizeText } from "../lib/utils";
 import { todayLocalISO, endOfWeekISO } from "../lib/dates";
 
@@ -278,7 +278,7 @@ export default function Dashboard() {
                         value={sortBy}
                         onChange={(e) => changeSort(e.target.value)}
                         aria-label="Ordenar proyectos"
-                        className="input sm:w-44"
+                        className="input pr-8 sm:w-auto"
                     >
                         {SORT_OPTIONS.map((o) => (
                             <option key={o.id} value={o.id}>
@@ -359,46 +359,5 @@ export default function Dashboard() {
                 </div>
             )}
         </div>
-    );
-}
-
-// Tile de resumen: icono con acento arriba, etiqueta y cifra abajo
-function StatTile({ icon: Icon, accent, value, label, title }) {
-    return (
-        <div className="card flex flex-col p-3 md:p-4" title={title}>
-            <span
-                className="flex h-9 w-9 items-center justify-center rounded-xl md:h-10 md:w-10"
-                style={{ backgroundColor: withAlpha(accent, 0.16), color: accent }}
-                aria-hidden="true"
-            >
-                <Icon className="h-4 w-4 md:h-5 md:w-5" />
-            </span>
-            <div className="mt-3 flex items-end justify-between gap-1">
-                <p className="min-w-0 text-[11px] font-medium leading-tight text-gray-500 dark:text-gray-400 md:text-xs">
-                    {label}
-                </p>
-                <p className="flex-shrink-0 text-lg font-bold leading-none tabular-nums text-gray-800 dark:text-gray-100 md:text-2xl">
-                    {value}
-                </p>
-            </div>
-        </div>
-    );
-}
-
-// Cifra de "Mi semana" (vencidas / hoy / semana)
-function WeekStat({ value, label, tone }) {
-    const toneClasses =
-        value > 0 && tone === "danger"
-            ? "text-red-600 dark:text-red-400"
-            : value > 0 && tone === "warning"
-                ? "text-amber-600 dark:text-amber-400"
-                : "text-gray-800 dark:text-gray-100";
-    return (
-        <span className="block rounded-xl bg-surface-2 px-2 py-2">
-            <span className={`block text-base font-bold leading-none tabular-nums ${toneClasses}`}>
-                {value}
-            </span>
-            <span className="mt-1 block text-[11px] text-gray-500 dark:text-gray-400">{label}</span>
-        </span>
     );
 }

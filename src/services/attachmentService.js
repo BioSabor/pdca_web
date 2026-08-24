@@ -20,6 +20,13 @@ import {
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 
+/**
+ * actionId sentinela de los documentos que cuelgan del PROYECTO y no de una
+ * acción concreta. Al vivir en la misma colección/ruta de Storage reutiliza
+ * las reglas de seguridad y el borrado en cascada del proyecto ya existentes.
+ */
+export const PROJECT_DOC_SCOPE = "__project__";
+
 const ALLOWED_IMAGE_TYPES = [
     "image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml"
 ];
@@ -129,6 +136,33 @@ export function subscribeToAttachments(projectId, actionId, callback, onError) {
         callback(results);
     }, (error) => {
         console.error("Error en suscripción de adjuntos:", error);
+        onError?.(error);
+    });
+}
+
+/**
+ * Sube un documento a la biblioteca del proyecto (no ligado a una acción).
+ */
+export function uploadProjectDocument(file, projectId, userId, onProgress) {
+    return uploadAttachment(file, projectId, PROJECT_DOC_SCOPE, userId, onProgress);
+}
+
+/**
+ * Suscripción en tiempo real a la documentación del proyecto. Más reciente
+ * primero: en una biblioteca documental interesa lo último subido.
+ */
+export function subscribeToProjectDocuments(projectId, callback, onError) {
+    const q = query(
+        collection(db, "attachments"),
+        where("projectId", "==", projectId),
+        where("actionId", "==", PROJECT_DOC_SCOPE)
+    );
+    return onSnapshot(q, (snapshot) => {
+        const results = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+        results.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+        callback(results);
+    }, (error) => {
+        console.error("Error en suscripción de documentos del proyecto:", error);
         onError?.(error);
     });
 }

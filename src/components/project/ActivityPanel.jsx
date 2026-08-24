@@ -1,4 +1,4 @@
-import { PlusCircle, Pencil, Trash2, RefreshCw, MessageSquare, Paperclip, FolderCog, History } from "lucide-react";
+import { PlusCircle, Pencil, Trash2, RefreshCw, MessageSquare, Paperclip, FolderCog, FolderOpen, History } from "lucide-react";
 import Modal from "../ui/Modal";
 import EmptyState from "../ui/EmptyState";
 import { SkeletonRows } from "../ui/Skeleton";
@@ -14,6 +14,8 @@ const TYPE_CONFIG = {
     comment_added: { icon: MessageSquare, color: "text-brand-600 dark:text-brand-400", label: "comentó" },
     attachment_added: { icon: Paperclip, color: "text-gray-600 dark:text-gray-300", label: "subió un adjunto" },
     attachment_deleted: { icon: Paperclip, color: "text-gray-500 dark:text-gray-400", label: "eliminó un adjunto" },
+    document_added: { icon: FolderOpen, color: "text-brand-600 dark:text-brand-400", label: "subió un documento del proyecto" },
+    document_deleted: { icon: FolderOpen, color: "text-gray-500 dark:text-gray-400", label: "eliminó un documento del proyecto" },
     project_updated: { icon: FolderCog, color: "text-brand-600 dark:text-brand-400", label: "editó el proyecto" },
 };
 
