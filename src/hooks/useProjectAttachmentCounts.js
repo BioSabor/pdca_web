@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { subscribeToProjectAttachments } from "../services/attachmentService";
+import { subscribeToProjectAttachments, PROJECT_DOC_SCOPE } from "../services/attachmentService";
 import useRealtimeSubscription from "./useRealtimeSubscription";
 
 /**
@@ -17,7 +17,10 @@ export default function useProjectAttachmentCounts(projectId) {
     const counts = useMemo(() => {
         const map = {};
         for (const att of data) {
-            if (att.actionId) map[att.actionId] = (map[att.actionId] || 0) + 1;
+            // Los documentos del proyecto no cuentan como adjunto de ninguna acción
+            if (att.actionId && att.actionId !== PROJECT_DOC_SCOPE) {
+                map[att.actionId] = (map[att.actionId] || 0) + 1;
+            }
         }
         return map;
     }, [data]);
