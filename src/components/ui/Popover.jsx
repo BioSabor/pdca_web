@@ -36,10 +36,17 @@ export default function Popover({ open, onClose, anchorRef, children, className,
         <div
             ref={panelRef}
             className={cn(
-                "z-popover max-h-60 overflow-y-auto rounded-lg border border-line bg-surface shadow-overlay",
+                "z-popover max-h-[60dvh] overflow-y-auto overscroll-contain rounded-xl border border-line bg-surface shadow-overlay",
                 className
             )}
-            style={{ position: "fixed", top: pos.top, left: pos.left, minWidth }}
+            style={{
+                position: "fixed",
+                top: pos.top,
+                left: pos.left,
+                // Nunca más ancho que la pantalla: en móvil se recortaba por los lados
+                minWidth: `min(${minWidth}px, calc(100vw - 1rem))`,
+                maxWidth: "calc(100vw - 1rem)",
+            }}
         >
             {children}
         </div>,

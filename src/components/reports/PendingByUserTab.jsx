@@ -12,7 +12,7 @@ function SummaryTile({ icon: Icon, iconClass, value, label }) {
     return (
         <div className="card p-4">
             <div className="flex items-center gap-3">
-                <div className={`rounded-lg p-2 ${iconClass}`}>
+                <div className={`rounded-xl p-2 ${iconClass}`}>
                     <Icon className="h-5 w-5" aria-hidden="true" />
                 </div>
                 <div>
@@ -113,7 +113,7 @@ export default function PendingByUserTab({ scopedActions, statuses, getUserName 
             </div>
 
             {/* Escritorio: tabla */}
-            <div className="card hidden overflow-x-auto lg:block">
+            <div className="card hidden scroll-x lg:block">
                 <table className="w-full min-w-[560px] text-sm">
                     <thead className="bg-surface-2">
                         <tr>

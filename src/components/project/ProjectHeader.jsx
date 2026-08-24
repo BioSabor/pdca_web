@@ -122,12 +122,12 @@ export default function ProjectHeader({
     ];
 
     return (
-        <div className="mb-6">
+        <div className="mb-5 md:mb-6">
             <Link
                 to="/"
-                className="mb-4 flex items-center text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                className="mb-3 inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-brand-600 dark:text-gray-400 dark:hover:text-brand-400"
             >
-                <ArrowLeft className="mr-2 h-4 w-4" />
+                <ArrowLeft className="h-4 w-4" />
                 Volver al panel
             </Link>
 
@@ -212,17 +212,19 @@ export default function ProjectHeader({
                     </div>
                 </div>
             ) : (
-                <div className="flex items-start justify-between">
-                    <div>
-                        <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100 md:text-3xl">
+                <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                        <h1 className="break-words text-xl font-bold text-gray-800 dark:text-gray-100 sm:text-2xl md:text-3xl">
                             {project.title}
                         </h1>
                         {project.description && (
-                            <p className="mt-1 text-gray-600 dark:text-gray-300">{project.description}</p>
+                            <p className="mt-1 line-clamp-3 text-sm text-gray-600 dark:text-gray-300 md:line-clamp-none md:text-base">
+                                {project.description}
+                            </p>
                         )}
                     </div>
                     {isCreator && (
-                        <div className="ml-4 flex flex-shrink-0 gap-2">
+                        <div className="flex flex-shrink-0 gap-1">
                             <button
                                 type="button"
                                 onClick={startEdit}
@@ -255,9 +257,9 @@ export default function ProjectHeader({
                     </span>
                     <span>{progress.pct}%</span>
                 </div>
-                <div className="h-2.5 w-full overflow-hidden rounded-full bg-surface-2">
+                <div className="h-2 w-full overflow-hidden rounded-full bg-surface-2">
                     <div
-                        className="h-2.5 rounded-full bg-brand-600 transition-all duration-500"
+                        className="h-full rounded-full bg-brand-600 transition-all duration-500 motion-reduce:transition-none"
                         style={{ width: `${progress.pct}%` }}
                     ></div>
                 </div>
@@ -265,24 +267,22 @@ export default function ProjectHeader({
 
             <PhaseDistributionBar actions={actions} />
 
-            <div className="mt-4 flex flex-wrap items-center gap-2">
-                <span className="text-xs text-gray-500 dark:text-gray-400">Usuarios:</span>
+            <div className="mt-4 flex flex-wrap items-center gap-1.5">
                 {projectUsers.map((u) => (
-                    <span key={u.id} className="chip">
+                    <span key={u.id} className="chip max-w-full truncate" title="Usuario asignado">
                         {u.displayName || u.email}
                     </span>
                 ))}
-                {projectDepartments.length > 0 && (
-                    <>
-                        <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">Departamentos:</span>
-                        {projectDepartments.map((d) => (
-                            <span key={d.id} className="chip">
-                                <Building2 className="h-3 w-3" />
-                                {d.name}
-                            </span>
-                        ))}
-                    </>
-                )}
+                {projectDepartments.map((d) => (
+                    <span
+                        key={d.id}
+                        className="chip max-w-full truncate bg-brand-50 text-brand-700 dark:bg-brand-900/30 dark:text-brand-200"
+                        title="Departamento"
+                    >
+                        <Building2 className="h-3 w-3 flex-shrink-0" />
+                        {d.name}
+                    </span>
+                ))}
             </div>
         </div>
     );

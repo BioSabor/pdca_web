@@ -5,26 +5,54 @@
 @layer base {
 	:root {
 		color-scheme: light;
-		--c-canvas: 249 250 251; /* gray-50 */
+		/* Superficies con un ligero tinte lavanda para casar con el degradado */
+		--c-canvas: 248 247 253;
 		--c-surface: 255 255 255;
-		--c-surface-2: 243 244 246; /* gray-100 */
-		--c-line: 229 231 235; /* gray-200 */
+		--c-surface-2: 241 239 250;
+		--c-line: 231 228 244;
+		/* Capas del degradado de fondo */
+		--grad-top: 139 92 246; /* violet-500 */
+		--grad-bottom: 99 102 241; /* indigo-500 */
+		--grad-top-alpha: 0.14;
+		--grad-bottom-alpha: 0.14;
+		--grad-base: linear-gradient(180deg, #eeeafb 0%, #f6f4fd 50%, #fdfcff 100%);
 	}
 
 	.dark {
 		color-scheme: dark;
-		--c-canvas: 17 24 39; /* gray-900 */
-		--c-surface: 31 41 55; /* gray-800 */
-		--c-surface-2: 55 65 81; /* gray-700 */
-		--c-line: 55 65 81; /* gray-700 */
+		--c-canvas: 11 10 18;
+		--c-surface: 26 26 34;
+		--c-surface-2: 38 38 49;
+		--c-line: 46 46 60;
+		--grad-top-alpha: 0.26;
+		--grad-bottom-alpha: 0.22;
+		--grad-base: linear-gradient(180deg, #0b0a12 0%, #100f19 60%, #15121f 100%);
 	}
 
 	html {
 		@apply antialiased;
+		/* Nada debe desbordar horizontalmente en móvil */
+		overflow-x: hidden;
 	}
 
 	body {
 		@apply bg-canvas text-gray-900 dark:text-gray-100;
+		overflow-x: hidden;
+		/* El fondo del body se propaga al lienzo del viewport: cubre toda la
+		   app (incluido el login) y no se mueve con el scroll interno */
+		background-image: radial-gradient(
+				110vw 60vh at 50% -10%,
+				rgb(var(--grad-top) / var(--grad-top-alpha)),
+				transparent 70%
+			),
+			radial-gradient(
+				90vw 50vh at 50% 108%,
+				rgb(var(--grad-bottom) / var(--grad-bottom-alpha)),
+				transparent 70%
+			),
+			var(--grad-base);
+		background-attachment: fixed;
+		background-repeat: no-repeat;
 	}
 
 	::selection {
@@ -34,11 +62,31 @@
 	:focus-visible {
 		@apply outline-none ring-2 ring-brand-500 ring-offset-2 ring-offset-canvas;
 	}
+
+	/* Scrollbars discretas y acordes al tema (los carruseles horizontales de
+	   Kanban/tabla dejan de pintar una barra gris gruesa) */
+	* {
+		scrollbar-width: thin;
+		scrollbar-color: rgb(var(--c-line)) transparent;
+	}
+	*::-webkit-scrollbar {
+		width: 10px;
+		height: 10px;
+	}
+	*::-webkit-scrollbar-track {
+		background: transparent;
+	}
+	*::-webkit-scrollbar-thumb {
+		background-color: rgb(var(--c-line));
+		border-radius: 9999px;
+		border: 3px solid transparent;
+		background-clip: content-box;
+	}
 }
 
 @layer components {
 	.btn {
-		@apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium min-h-10 transition-colors disabled:opacity-50 disabled:pointer-events-none;
+		@apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-medium min-h-10 transition-colors disabled:opacity-50 disabled:pointer-events-none;
 	}
 	.btn-primary {
 		@apply btn bg-brand-600 text-white hover:bg-brand-700 active:bg-brand-800;
@@ -60,10 +108,14 @@
 	}
 
 	.card {
-		@apply bg-surface rounded-xl border border-line shadow-card;
+		@apply bg-surface rounded-2xl border border-line shadow-card;
+	}
+	/* Tarjeta pulsable (proyectos, tareas): reacciona al toque en móvil */
+	.card-interactive {
+		@apply card transition-[box-shadow,transform,background-color] duration-200 hover:shadow-card-hover active:scale-[0.99] motion-reduce:active:scale-100 motion-reduce:transition-none;
 	}
 	.input {
-		@apply w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm min-h-10 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500;
+		@apply w-full rounded-xl border border-line bg-surface px-3 py-2 text-sm min-h-10 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500;
 	}
 	.label {
 		@apply block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1;
@@ -73,5 +125,11 @@
 	}
 	.chip {
 		@apply inline-flex items-center gap-1 rounded-full bg-surface-2 px-2 py-1 text-xs text-gray-700 dark:text-gray-200;
+	}
+	/* Contenedor con scroll horizontal propio (tablas, Kanban, Gantt): nunca
+	   arrastra a la página, ni siquiera dentro de un flex */
+	.scroll-x {
+		@apply min-w-0 max-w-full overflow-x-auto overscroll-x-contain;
+		-webkit-overflow-scrolling: touch;
 	}
 }

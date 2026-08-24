@@ -81,7 +81,7 @@ export default function ActionsTable({
     );
 
     return (
-        <div className="card overflow-x-auto">
+        <div className="card scroll-x">
             <table className="w-full min-w-[980px] divide-y divide-line text-sm">
                 <thead className="bg-surface-2">
                     <tr>

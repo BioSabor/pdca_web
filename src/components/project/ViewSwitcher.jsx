@@ -8,7 +8,7 @@ export default function ViewSwitcher({ options, value, onChange, className }) {
         <div
             role="group"
             aria-label="Vista"
-            className={cn("inline-flex rounded-lg border border-line bg-surface p-0.5", className)}
+            className={cn("inline-flex flex-shrink-0 rounded-xl border border-line bg-surface p-0.5", className)}
         >
             {options.map((opt) => {
                 const active = value === opt.id;
@@ -20,14 +20,14 @@ export default function ViewSwitcher({ options, value, onChange, className }) {
                         onClick={() => onChange(opt.id)}
                         aria-pressed={active}
                         className={cn(
-                            "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition-colors",
+                            "inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 py-1.5 text-sm transition-colors sm:px-3",
                             active
                                 ? "bg-brand-600 text-white"
                                 : "text-gray-600 hover:bg-surface-2 dark:text-gray-300"
                         )}
                     >
                         {Icon && <Icon className="h-4 w-4" />}
-                        {opt.label}
+                        <span className={cn(Icon && "hidden xs:inline")}>{opt.label}</span>
                     </button>
                 );
             })}

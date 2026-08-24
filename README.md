@@ -27,6 +27,15 @@ Aplicación web para la gestión de equipos y departamentos con metodología PDC
 - Modo oscuro sin parpadeo, diseño responsive móvil-first, accesibilidad (focus visible, labels, targets táctiles)
 - Roles usuario/administrador; panel de administración (usuarios, estados, departamentos, plantillas)
 
+## Sistema visual
+
+- **Fondo**: degradado violeta fijo definido en `<body>` (`src/index.css`), con dos halos radiales y una base lineal por tema. Los contenedores de la app son transparentes para dejarlo pasar.
+- **Color**: marca índigo (`brand`) y acento violeta (`accent`) en `tailwind.config.js`; superficies, líneas y lienzo como variables CSS (`--c-surface`, `--c-line`…) que cambian con `.dark`.
+- **Formas**: tarjetas `rounded-2xl` (`.card`), controles `rounded-xl`, sombras tintadas de violeta.
+- **Rejillas**: el panel muestra los proyectos como tiles (2 columnas en móvil, 3 en `sm`, 4 en `lg`) con un acento de color estable por proyecto (`getEntityColor`).
+- **Listas de tareas**: una tarjeta por tarea, con círculo para completar, fecha de vencimiento destacada y selector de estado.
+- **Sin desbordes laterales**: `html`/`body` recortan el eje X y todo bloque ancho (tablas, Kanban, Gantt, gráficas) usa la utilidad `.scroll-x`, que crea su propio carrusel sin arrastrar a la página.
+
 ## Stack
 - React 18 + Vite 5 (+ vite-plugin-pwa)
 - Tailwind CSS 3 (tokens de diseño en `tailwind.config.js` + `src/index.css`)

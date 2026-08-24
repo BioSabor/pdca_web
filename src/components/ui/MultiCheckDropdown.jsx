@@ -26,7 +26,7 @@ export default function MultiCheckDropdown({ options, selected, onChange, placeh
                 onClick={() => setOpen((v) => !v)}
                 aria-expanded={open}
                 className={cn(
-                    "flex min-w-[140px] items-center justify-between gap-2 rounded-lg border border-line bg-surface px-3 py-1.5 text-sm hover:bg-surface-2",
+                    "flex min-h-9 min-w-[7rem] max-w-full items-center justify-between gap-2 rounded-xl border border-line bg-surface px-3 py-1.5 text-sm hover:bg-surface-2 sm:min-w-[140px]",
                     className
                 )}
             >
@@ -39,7 +39,7 @@ export default function MultiCheckDropdown({ options, selected, onChange, placeh
                 </span>
                 <ChevronDown className="h-3 w-3 flex-shrink-0 text-gray-400" />
             </button>
-            <Popover open={open} onClose={() => setOpen(false)} anchorRef={btnRef}>
+            <Popover open={open} onClose={() => setOpen(false)} anchorRef={btnRef} className="max-w-[calc(100vw-1rem)]">
                 {options.map((opt) => (
                     <label
                         key={opt.value}

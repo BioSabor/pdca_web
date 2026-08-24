@@ -17,6 +17,7 @@ import { useConfirm } from "../components/ui/ConfirmDialog";
 import { getStatusConfig } from "../lib/status";
 import { isClosedStatus, computeProgress } from "../lib/progress";
 import { isHighlighted } from "../lib/priority";
+import { withAlpha } from "../lib/color";
 import { normalizeText } from "../lib/utils";
 import { todayLocalISO, endOfWeekISO } from "../lib/dates";
 
@@ -174,12 +175,16 @@ export default function Dashboard() {
     if (loading) {
         return (
             <div className="mx-auto w-full max-w-7xl">
-                <div className="mx-auto mb-8 grid max-w-4xl grid-cols-3 gap-2 md:gap-4">
-                    <Skeleton className="h-20" />
-                    <Skeleton className="h-20" />
-                    <Skeleton className="h-20" />
+                <div className="mb-6 grid gap-3 md:gap-4 lg:grid-cols-3">
+                    <div className="grid grid-cols-3 gap-2 sm:gap-3 md:gap-4 lg:col-span-2">
+                        <Skeleton className="h-24 rounded-2xl" />
+                        <Skeleton className="h-24 rounded-2xl" />
+                        <Skeleton className="h-24 rounded-2xl" />
+                    </div>
+                    <Skeleton className="h-24 rounded-2xl" />
                 </div>
-                <div className="grid gap-3 md:grid-cols-2 md:gap-4 lg:grid-cols-3">
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:gap-4 lg:grid-cols-4">
+                    <SkeletonCard />
                     <SkeletonCard />
                     <SkeletonCard />
                     <SkeletonCard />
@@ -190,49 +195,48 @@ export default function Dashboard() {
 
     return (
         <div className="mx-auto w-full max-w-7xl">
-            {/* Resumen global */}
-            <div className="mx-auto mb-8 grid max-w-4xl grid-cols-3 gap-2 md:gap-4">
-                <StatTile
-                    icon={Clock}
-                    iconClasses="bg-brand-100 text-brand-600 dark:bg-brand-900/40"
-                    value={globalStats.totalPending}
-                    label="Pendientes mías"
-                />
-                <StatTile
-                    icon={AlertTriangle}
-                    iconClasses="bg-red-100 text-red-600 dark:bg-red-900/40"
-                    value={globalStats.totalPriority}
-                    label="Prioritarias"
-                />
-                <StatTile
-                    icon={CheckCircle}
-                    iconClasses="bg-green-100 text-green-600 dark:bg-green-900/40"
-                    value={projects.length}
-                    label="Proyectos"
-                />
-            </div>
+            {/* Resumen global + Mi semana */}
+            <div className="mb-6 grid gap-3 md:mb-8 md:gap-4 lg:grid-cols-3">
+                <div className="grid grid-cols-3 gap-2 sm:gap-3 md:gap-4 lg:col-span-2">
+                    <StatTile
+                        icon={Clock}
+                        accent="#6366F1"
+                        value={globalStats.totalPending}
+                        label="Pendientes"
+                        title="Acciones abiertas asignadas a ti"
+                    />
+                    <StatTile
+                        icon={AlertTriangle}
+                        accent="#EF4444"
+                        value={globalStats.totalPriority}
+                        label="Prioritarias"
+                        title="Tus acciones abiertas de prioridad alta"
+                    />
+                    <StatTile
+                        icon={CheckCircle}
+                        accent="#22C55E"
+                        value={projects.length}
+                        label="Proyectos"
+                        title="Proyectos en los que participas"
+                    />
+                </div>
 
-            {/* Mi semana */}
-            <Link
-                to="/my-tasks"
-                className="card mx-auto mb-8 flex max-w-4xl flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 text-sm transition-shadow hover:shadow-card-hover"
-            >
-                <span className="flex items-center gap-2 font-medium text-gray-700 dark:text-gray-200">
-                    <ListTodo className="h-4 w-4 text-brand-600 dark:text-brand-400" />
-                    Mi semana
-                </span>
-                {myWeek.overdue > 0 && (
-                    <span className="font-medium text-red-600 dark:text-red-400">
-                        {myWeek.overdue} vencida(s)
+                <Link to="/my-tasks" className="card-interactive block px-4 py-3 text-sm">
+                    <span className="flex items-center gap-2 font-semibold text-gray-700 dark:text-gray-200">
+                        <ListTodo className="h-4 w-4 flex-shrink-0 text-brand-600 dark:text-brand-400" />
+                        Mi semana
+                        <span className="ml-auto flex items-center gap-1 whitespace-nowrap text-xs font-medium text-brand-600 dark:text-brand-400">
+                            <span className="hidden xs:inline">Ver Mis Tareas</span>
+                            <ArrowRight className="h-4 w-4" />
+                        </span>
                     </span>
-                )}
-                <span className="text-gray-600 dark:text-gray-300">{myWeek.today} para hoy</span>
-                <span className="text-gray-600 dark:text-gray-300">{myWeek.week} esta semana</span>
-                <span className="ml-auto flex items-center gap-1 text-brand-600 dark:text-brand-400">
-                    Ver Mis Tareas
-                    <ArrowRight className="h-4 w-4" />
-                </span>
-            </Link>
+                    <span className="mt-2 grid grid-cols-3 gap-2 text-center">
+                        <WeekStat value={myWeek.overdue} label="vencidas" tone="danger" />
+                        <WeekStat value={myWeek.today} label="para hoy" tone="warning" />
+                        <WeekStat value={myWeek.week} label="esta semana" />
+                    </span>
+                </Link>
+            </div>
 
             {/* Cabecera + controles */}
             <div className="mb-6 flex flex-col gap-3">
@@ -315,18 +319,18 @@ export default function Dashboard() {
                 <div className="space-y-8">
                     {visibleGroups.map(([groupId, group]) => (
                         <section key={groupId}>
-                            <h3 className="mb-4 flex items-center gap-2 border-b border-line pb-2 text-lg font-semibold text-gray-700 dark:text-gray-200">
+                            <h3 className="mb-3 flex items-center gap-2 px-1 text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
                                 {groupId === "none" ? (
-                                    <Users className="h-5 w-5 text-gray-400" />
+                                    <Users className="h-4 w-4 flex-shrink-0 text-gray-400" />
                                 ) : (
-                                    <Building2 className="h-5 w-5 text-brand-500" />
+                                    <Building2 className="h-4 w-4 flex-shrink-0 text-brand-500" />
                                 )}
-                                {group.name}
-                                <span className="badge ml-auto bg-surface-2 font-normal text-gray-500 dark:text-gray-300">
+                                <span className="min-w-0 truncate">{group.name}</span>
+                                <span className="badge ml-auto flex-shrink-0 bg-surface-2 font-normal normal-case text-gray-500 dark:text-gray-300">
                                     {group.projects.length}
                                 </span>
                             </h3>
-                            <div className="grid gap-3 md:grid-cols-2 md:gap-4 lg:grid-cols-3">
+                            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:gap-4 lg:grid-cols-4">
                                 {group.projects.map((project) => {
                                     const validDeptCount = (project.assignedDepartments || []).filter((id) =>
                                         departments.some((d) => d.id === id)
@@ -358,18 +362,43 @@ export default function Dashboard() {
     );
 }
 
-function StatTile({ icon: Icon, iconClasses, value, label }) {
+// Tile de resumen: icono con acento arriba, etiqueta y cifra abajo
+function StatTile({ icon: Icon, accent, value, label, title }) {
     return (
-        <div className="card p-3 md:p-5">
-            <div className="flex flex-col items-center gap-1 text-center md:flex-row md:gap-3 md:text-left">
-                <div className={`rounded-lg p-1.5 md:p-2.5 ${iconClasses}`}>
-                    <Icon className="h-4 w-4 md:h-5 md:w-5" />
-                </div>
-                <div>
-                    <p className="text-lg font-bold text-gray-800 dark:text-gray-100 md:text-2xl">{value}</p>
-                    <p className="text-xs leading-tight text-gray-500 dark:text-gray-400">{label}</p>
-                </div>
+        <div className="card flex flex-col p-3 md:p-4" title={title}>
+            <span
+                className="flex h-9 w-9 items-center justify-center rounded-xl md:h-10 md:w-10"
+                style={{ backgroundColor: withAlpha(accent, 0.16), color: accent }}
+                aria-hidden="true"
+            >
+                <Icon className="h-4 w-4 md:h-5 md:w-5" />
+            </span>
+            <div className="mt-3 flex items-end justify-between gap-1">
+                <p className="min-w-0 text-[11px] font-medium leading-tight text-gray-500 dark:text-gray-400 md:text-xs">
+                    {label}
+                </p>
+                <p className="flex-shrink-0 text-lg font-bold leading-none tabular-nums text-gray-800 dark:text-gray-100 md:text-2xl">
+                    {value}
+                </p>
             </div>
         </div>
+    );
+}
+
+// Cifra de "Mi semana" (vencidas / hoy / semana)
+function WeekStat({ value, label, tone }) {
+    const toneClasses =
+        value > 0 && tone === "danger"
+            ? "text-red-600 dark:text-red-400"
+            : value > 0 && tone === "warning"
+                ? "text-amber-600 dark:text-amber-400"
+                : "text-gray-800 dark:text-gray-100";
+    return (
+        <span className="block rounded-xl bg-surface-2 px-2 py-2">
+            <span className={`block text-base font-bold leading-none tabular-nums ${toneClasses}`}>
+                {value}
+            </span>
+            <span className="mt-1 block text-[11px] text-gray-500 dark:text-gray-400">{label}</span>
+        </span>
     );
 }

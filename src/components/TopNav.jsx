@@ -67,23 +67,23 @@ export default function TopNav() {
 
     const navLinkClasses = (path) =>
         cn(
-            "flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors",
+            "flex items-center gap-2 whitespace-nowrap rounded-xl px-3 py-2 text-sm transition-colors",
             isActive(path)
                 ? "bg-brand-600 text-white"
                 : "text-gray-600 hover:bg-surface-2 dark:text-gray-300"
         );
 
     return (
-        <header className="z-nav border-b border-line bg-surface">
-            <div className="flex h-16 items-center justify-between gap-2 px-4 md:px-8">
+        <header className="z-nav flex-shrink-0 border-b border-line bg-surface/80 backdrop-blur-xl supports-[not(backdrop-filter:blur(0))]:bg-surface">
+            <div className="flex h-16 items-center justify-between gap-2 px-3 sm:px-4 md:px-8">
                 <Link to="/" className="flex min-w-0 items-center gap-3">
                     <img src="/BIOSABOR_NOCLAIM-01.png" alt="BioSabor" className="h-9 object-contain" />
-                    <span className="hidden text-sm font-semibold text-gray-700 dark:text-gray-200 sm:inline">
+                    <span className="hidden whitespace-nowrap text-sm font-semibold text-gray-700 dark:text-gray-200 sm:inline lg:hidden xl:inline">
                         PDCA Manager
                     </span>
                 </Link>
 
-                <nav className="hidden items-center gap-1 lg:flex" aria-label="Navegación principal">
+                <nav className="hidden min-w-0 items-center gap-0.5 lg:flex" aria-label="Navegación principal">
                     {menuItems.map((item) => (
                         <Link
                             key={item.path}
@@ -97,23 +97,27 @@ export default function TopNav() {
                     ))}
                 </nav>
 
-                <div className="hidden items-center gap-2 lg:flex">
+                <div className="hidden flex-shrink-0 items-center gap-1 lg:flex">
                     <button
                         type="button"
                         onClick={openPalette}
-                        className="flex h-9 items-center gap-2 rounded-lg border border-line bg-canvas px-3 text-sm text-gray-400 transition-colors hover:border-brand-400 hover:text-gray-500 dark:hover:text-gray-300"
+                        className="flex h-9 flex-shrink-0 items-center gap-2 whitespace-nowrap rounded-xl border border-line bg-surface-2 px-3 text-sm text-gray-400 transition-colors hover:border-brand-400 hover:text-gray-500 dark:hover:text-gray-300"
                         aria-label="Buscar (Ctrl+K)"
                     >
                         <Search className="h-4 w-4" />
-                        <span>Buscar…</span>
-                        <kbd className="rounded border border-line bg-surface px-1.5 text-[11px]">Ctrl K</kbd>
+                        <span className="hidden xl:inline">Buscar…</span>
+                        <kbd className="hidden rounded border border-line bg-surface px-1.5 text-[11px] xl:inline">
+                            Ctrl K
+                        </kbd>
                     </button>
                     <NotificationBell />
-                    <div className="mr-1 text-right">
-                        <span className="block text-sm font-medium text-gray-800 dark:text-gray-100">
+                    <div className="mr-1 hidden max-w-[12rem] text-right xl:block">
+                        <span className="block truncate text-sm font-medium text-gray-800 dark:text-gray-100">
                             {currentUser?.displayName || "Usuario"}
                         </span>
-                        <span className="text-xs text-gray-500 dark:text-gray-400">{currentUser?.email}</span>
+                        <span className="block truncate text-xs text-gray-500 dark:text-gray-400">
+                            {currentUser?.email}
+                        </span>
                     </div>
                     <button
                         onClick={toggleTheme}
@@ -125,10 +129,11 @@ export default function TopNav() {
                     </button>
                     <button
                         onClick={logout}
-                        className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/30"
+                        className="flex items-center gap-2 whitespace-nowrap rounded-xl px-3 py-2 text-sm text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/30"
+                        title="Cerrar sesión"
                     >
                         <LogOut className="h-4 w-4" />
-                        Cerrar sesión
+                        <span className="hidden xl:inline">Cerrar sesión</span>
                     </button>
                 </div>
 
@@ -169,7 +174,7 @@ export default function TopNav() {
                             role="dialog"
                             aria-modal="true"
                             aria-label="Menú"
-                            className="absolute inset-y-0 right-0 flex w-72 max-w-[85vw] flex-col bg-surface shadow-overlay"
+                            className="absolute inset-y-0 right-0 flex w-72 max-w-[85vw] flex-col rounded-l-2xl bg-surface shadow-overlay"
                         >
                             <div className="flex items-center justify-between border-b border-line px-4 py-3">
                                 <div className="min-w-0">
@@ -204,14 +209,14 @@ export default function TopNav() {
                             <div className="space-y-1 border-t border-line p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
                                 <button
                                     onClick={toggleTheme}
-                                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-gray-600 transition-colors hover:bg-surface-2 dark:text-gray-300"
+                                    className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-gray-600 transition-colors hover:bg-surface-2 dark:text-gray-300"
                                 >
                                     {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
                                     {theme === "dark" ? "Modo claro" : "Modo oscuro"}
                                 </button>
                                 <button
                                     onClick={logout}
-                                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/30"
+                                    className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/30"
                                 >
                                     <LogOut className="h-4 w-4" />
                                     Cerrar sesión

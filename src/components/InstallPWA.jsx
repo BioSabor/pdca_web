@@ -93,7 +93,7 @@ export default function InstallPWA() {
         <div className="flex flex-shrink-0 items-center gap-2">
           <button
             onClick={handleInstall}
-            className="rounded-lg bg-white px-4 py-2 text-sm font-bold text-brand-600 transition-colors hover:bg-brand-50"
+            className="rounded-xl bg-white px-4 py-2 text-sm font-bold text-brand-600 transition-colors hover:bg-brand-50"
           >
             Instalar
           </button>

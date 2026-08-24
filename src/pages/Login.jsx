@@ -36,18 +36,22 @@ export default function Login() {
     }
 
     return (
-        <div className="flex min-h-dvh items-center justify-center bg-canvas px-4 py-8">
-            <div className="card w-full max-w-sm p-6 md:p-8">
+        // Fondo: el degradado global de <body>
+        <div className="flex min-h-dvh items-center justify-center px-4 py-8">
+            <div className="card w-full max-w-sm p-6 shadow-card-hover md:p-8">
                 <img
                     src="/BIOSABOR_NOCLAIM-01.png"
                     alt="BioSabor"
-                    className="mx-auto mb-4 h-12 object-contain"
+                    className="mx-auto mb-4 h-12 max-w-full object-contain"
                 />
-                <h1 className="mb-6 text-center text-2xl font-bold text-gray-800 dark:text-gray-100">
+                <h1 className="text-center text-2xl font-bold text-gray-800 dark:text-gray-100">
                     Iniciar sesión
                 </h1>
+                <p className="mb-6 mt-1 text-center text-sm text-gray-500 dark:text-gray-400">
+                    Gestión de proyectos PDCA
+                </p>
                 {error && (
-                    <div role="alert" className="mb-4 rounded-lg bg-red-100 p-3 text-sm text-red-700 dark:bg-red-900/40 dark:text-red-200">
+                    <div role="alert" className="mb-4 rounded-xl bg-red-100 p-3 text-sm text-red-700 dark:bg-red-900/40 dark:text-red-200">
                         {error}
                     </div>
                 )}

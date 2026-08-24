@@ -43,7 +43,7 @@ export default function PhaseSelect({ value, onChange, variant = "select", class
             onChange={(e) => onChange(e.target.value)}
             aria-label={ariaLabel}
             className={cn(
-                "w-full min-w-[90px] cursor-pointer rounded-lg border border-line bg-surface px-2 py-1 text-xs text-gray-700 dark:text-gray-200",
+                "w-full min-w-[5.5rem] cursor-pointer rounded-lg border border-line bg-surface px-2 py-1 text-xs text-gray-700 dark:text-gray-200",
                 className
             )}
         >

@@ -83,7 +83,7 @@ export default function GanttView({ actions, statuses }) {
     }
 
     return (
-        <div className="card overflow-x-auto p-4">
+        <div className="card scroll-x p-4">
             <div className="relative min-w-[600px]">
                 {/* Cabecera de la línea temporal */}
                 <div className="relative mb-2 h-6 border-b border-line pb-2">

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Paperclip, Trash2 } from "lucide-react";
+import { Check, ChevronDown, Paperclip, Trash2 } from "lucide-react";
 import StatusPill from "../ui/StatusPill";
 import PriorityBadge from "../ui/PriorityBadge";
 import Field from "../ui/Field";
@@ -11,7 +11,7 @@ import PhaseSelect from "./PhaseSelect";
 import PrioritySelect from "./PrioritySelect";
 import SubactionsPanel from "./SubactionsPanel";
 import { getStatusConfig } from "../../lib/status";
-import { isClosedStatus } from "../../lib/progress";
+import { isClosedStatus, isDoneStatus } from "../../lib/progress";
 import { isBeforeToday, formatShortDate } from "../../lib/dates";
 import { normalizePriority } from "../../lib/priority";
 import { getPhaseConfig } from "../../lib/pdca";
@@ -49,6 +49,10 @@ export default function ActionCardList({
     const [expandedSubsId, setExpandedSubsId] = useState(null);
     const [expandedCommentsId, setExpandedCommentsId] = useState(null);
 
+    // Estados que alimentan el círculo de completar/reabrir de cada tarjeta
+    const doneStatus = statuses.find(isDoneStatus) || null;
+    const reopenStatus = statuses.find((s) => !isClosedStatus(s)) || statuses[0] || null;
+
     function assigneeOptionsFor(action) {
         const options = [...projectUserOptions];
         for (const uid of action.assignedUsers || []) {
@@ -60,7 +64,7 @@ export default function ActionCardList({
     }
 
     return (
-        <div className="space-y-2">
+        <div className="space-y-2.5">
             {actions.map((action) => {
                 const statusCfg = getStatusConfig(statuses, action.status);
                 const closed = isClosedStatus(statusCfg);
@@ -90,68 +94,108 @@ export default function ActionCardList({
                             highlightId === action.id && "ring-2 ring-brand-500"
                         )}
                     >
-                        <button
-                            type="button"
-                            onClick={() => setExpandedCardId(isExpanded ? null : action.id)}
-                            aria-expanded={isExpanded}
-                            className="flex w-full items-start gap-3 px-4 py-3 text-left"
-                        >
-                            <span
-                                className="mt-1.5 h-3 w-3 flex-shrink-0 rounded-full"
-                                style={{ backgroundColor: statusCfg.color }}
-                                aria-hidden="true"
-                            ></span>
-                            <span className="min-w-0 flex-1">
-                                <span
+                        <div className="flex items-start gap-3 px-3 py-3 sm:px-4">
+                            {doneStatus ? (
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        api.changeStatus(
+                                            action,
+                                            closed ? reopenStatus?.id : doneStatus.id
+                                        )
+                                    }
+                                    disabled={closed && !reopenStatus}
+                                    aria-label={
+                                        closed
+                                            ? `Reabrir "${action.action}"`
+                                            : `Marcar "${action.action}" como ${doneStatus.label}`
+                                    }
+                                    title={closed ? "Reabrir" : `Marcar como ${doneStatus.label}`}
                                     className={cn(
-                                        "block text-sm leading-snug text-gray-800 dark:text-gray-100",
-                                        priority === "high" && "font-semibold"
+                                        "mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full border-2 transition-colors",
+                                        closed
+                                            ? "border-transparent text-white"
+                                            : "border-gray-300 text-transparent hover:border-green-500 hover:text-green-500 dark:border-gray-600"
                                     )}
+                                    style={closed ? { backgroundColor: statusCfg.color } : undefined}
                                 >
-                                    {action.seqId ? (
-                                        <span className="mr-1 text-xs text-gray-400 dark:text-gray-500">
-                                            #{action.seqId}
-                                        </span>
-                                    ) : null}
-                                    {action.action || "Sin descripción"}
+                                    <Check className="h-4 w-4" strokeWidth={3} />
+                                </button>
+                            ) : (
+                                <span
+                                    className="mt-2 h-3 w-3 flex-shrink-0 rounded-full"
+                                    style={{ backgroundColor: statusCfg.color }}
+                                    aria-hidden="true"
+                                ></span>
+                            )}
+                            <button
+                                type="button"
+                                onClick={() => setExpandedCardId(isExpanded ? null : action.id)}
+                                aria-expanded={isExpanded}
+                                className="flex min-w-0 flex-1 items-start gap-2 text-left"
+                            >
+                                <span className="min-w-0 flex-1">
+                                    <span
+                                        className={cn(
+                                            "block line-clamp-3 text-sm leading-snug text-gray-800 dark:text-gray-100",
+                                            priority === "high" && "font-semibold",
+                                            closed && "text-gray-400 line-through dark:text-gray-500"
+                                        )}
+                                    >
+                                        {action.seqId ? (
+                                            <span className="mr-1 text-xs text-gray-400 dark:text-gray-500">
+                                                #{action.seqId}
+                                            </span>
+                                        ) : null}
+                                        {action.action || "Sin descripción"}
+                                    </span>
+                                    <span className="mt-1 flex flex-wrap items-center gap-2">
+                                        <PriorityBadge priority={priority} showLabel={false} />
+                                        {phaseCfg && (
+                                            <span
+                                                className="badge"
+                                                style={{
+                                                    backgroundColor: phaseCfg.color,
+                                                    color: getReadableTextColor(phaseCfg.color),
+                                                }}
+                                            >
+                                                {phaseCfg.label}
+                                            </span>
+                                        )}
+                                        {cardDateRaw && (
+                                            <span
+                                                className={cn(
+                                                    "text-xs",
+                                                    cardDateOverdue
+                                                        ? "font-semibold text-red-500"
+                                                        : "text-amber-600 dark:text-amber-400"
+                                                )}
+                                            >
+                                                {formatShortDate(cardDateRaw)}
+                                            </span>
+                                        )}
+                                        {(action.assignedUsers || []).length > 0 && (
+                                            <span className="text-xs text-gray-400 dark:text-gray-500">
+                                                · {action.assignedUsers.map((uid) => getUserName(uid)).join(", ")}
+                                            </span>
+                                        )}
+                                    </span>
                                 </span>
-                                <span className="mt-1 flex flex-wrap items-center gap-2">
-                                    <PriorityBadge priority={priority} showLabel={false} />
-                                    {phaseCfg && (
-                                        <span
-                                            className="badge"
-                                            style={{
-                                                backgroundColor: phaseCfg.color,
-                                                color: getReadableTextColor(phaseCfg.color),
-                                            }}
-                                        >
-                                            {phaseCfg.label}
-                                        </span>
-                                    )}
-                                    {cardDateRaw && (
-                                        <span
-                                            className={cn(
-                                                "text-xs",
-                                                cardDateOverdue
-                                                    ? "font-semibold text-red-500"
-                                                    : "text-amber-600 dark:text-amber-400"
-                                            )}
-                                        >
-                                            {formatShortDate(cardDateRaw)}
-                                        </span>
-                                    )}
-                                    {(action.assignedUsers || []).length > 0 && (
-                                        <span className="text-xs text-gray-400 dark:text-gray-500">
-                                            · {action.assignedUsers.map((uid) => getUserName(uid)).join(", ")}
-                                        </span>
-                                    )}
+                                <span className="flex flex-shrink-0 flex-col items-end gap-1">
+                                    <StatusPill status={statusCfg} size="sm" />
+                                    <ChevronDown
+                                        className={cn(
+                                            "h-4 w-4 text-gray-400 transition-transform motion-reduce:transition-none",
+                                            isExpanded && "rotate-180"
+                                        )}
+                                        aria-hidden="true"
+                                    />
                                 </span>
-                            </span>
-                            <StatusPill status={statusCfg} size="sm" className="flex-shrink-0" />
-                        </button>
+                            </button>
+                        </div>
 
                         {isExpanded && (
-                            <div className="space-y-3 border-t border-line px-4 pb-4 pt-3">
+                            <div className="space-y-3 border-t border-line px-3 pb-4 pt-3 sm:px-4">
                                 <Field label="Estado">
                                     <StatusSelect
                                         statuses={statuses}

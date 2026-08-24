@@ -38,7 +38,7 @@ export default function ProjectToolbar({
                 )}
             >
                 <Filter className="h-4 w-4" />
-                Filtros
+                <span className="hidden xs:inline">Filtros</span>
                 {activeFilterCount > 0 && (
                     <span className="badge bg-brand-600 text-white">{activeFilterCount}</span>
                 )}
@@ -59,6 +59,7 @@ export default function ProjectToolbar({
                 selected={visibleColumns}
                 onChange={onColumnsChange}
                 placeholder="Columnas"
+                className="min-w-0 max-w-[9rem] sm:max-w-none"
             />
             <ViewSwitcher options={viewOptions} value={view} onChange={onViewChange} />
             <div className="ml-auto flex flex-wrap items-center gap-2">
@@ -88,14 +89,17 @@ export default function ProjectToolbar({
                     type="button"
                     onClick={onExportPdf}
                     disabled={exportDisabled}
+                    aria-label="Exportar PDF"
+                    title="Exportar PDF"
                     className="btn-secondary btn-sm"
                 >
                     <FileDown className="h-4 w-4" />
-                    Exportar PDF
+                    <span className="hidden sm:inline">Exportar PDF</span>
                 </button>
                 <button type="button" onClick={onNewAction} className="btn-primary btn-sm">
                     <Plus className="h-4 w-4" />
-                    Nueva acción
+                    <span className="hidden xs:inline">Nueva acción</span>
+                    <span className="xs:hidden">Nueva</span>
                 </button>
             </div>
         </div>

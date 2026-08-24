@@ -158,7 +158,7 @@ export default function CommandPalette() {
                 onClick={() => select(item)}
                 onMouseEnter={() => setHighlighted(idx)}
                 className={cn(
-                    "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left",
+                    "flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left",
                     idx === highlighted ? "bg-brand-600/10 dark:bg-brand-500/15" : "hover:bg-surface-2"
                 )}
             >
