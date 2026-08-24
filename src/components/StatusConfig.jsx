@@ -111,7 +111,7 @@ export default function StatusConfig() {
             </div>
 
             {remoteChanged && (
-                <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-200">
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-200">
                     <p>
                         La configuración cambió en otro dispositivo. Si guardas, sobrescribirás esos
                         cambios.
@@ -174,7 +174,7 @@ export default function StatusConfig() {
                 ))}
             </div>
 
-            <div className="mb-6 rounded-lg border border-brand-200 bg-brand-50 p-3 text-sm text-brand-700 dark:border-brand-800 dark:bg-brand-900/20 dark:text-brand-200">
+            <div className="mb-6 rounded-xl border border-brand-200 bg-brand-50 p-3 text-sm text-brand-700 dark:border-brand-800 dark:bg-brand-900/20 dark:text-brand-200">
                 <strong>Tipos de estado:</strong>
                 <ul className="ml-4 mt-1 list-disc space-y-0.5">
                     <li>

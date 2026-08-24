@@ -111,7 +111,7 @@ export default function ActionAttachments({ projectId, actionId, userId, actionS
             {/* Zona de carga con drag & drop */}
             <div
                 className={cn(
-                    "cursor-pointer rounded-lg border-2 border-dashed px-4 py-3 text-center transition-all",
+                    "cursor-pointer rounded-xl border-2 border-dashed px-4 py-3 text-center transition-all",
                     dragOver
                         ? "border-brand-400 bg-brand-50 dark:bg-brand-900/20"
                         : "border-line hover:border-brand-400 hover:bg-surface-2/60"
@@ -152,7 +152,7 @@ export default function ActionAttachments({ projectId, actionId, userId, actionS
             {attachments.length > 0 && (
                 <div className="space-y-1">
                     {attachments.map((att) => (
-                        <div key={att.id} className="group flex items-center gap-2 rounded-lg bg-surface-2/60 px-3 py-1.5">
+                        <div key={att.id} className="group flex items-center gap-2 rounded-xl bg-surface-2/60 px-3 py-1.5">
                             <span className="flex-shrink-0 text-base" aria-hidden="true">{getFileIcon(att.fileType)}</span>
                             <div className="min-w-0 flex-1">
                                 <a
@@ -227,7 +227,7 @@ export default function ActionAttachments({ projectId, actionId, userId, actionS
                             <img
                                 src={previewUrl}
                                 alt="Vista previa"
-                                className="max-h-[85dvh] max-w-[90vw] rounded-lg object-contain shadow-overlay"
+                                className="max-h-[85dvh] max-w-[90vw] rounded-2xl object-contain shadow-overlay"
                             />
                         </div>
                     </div>,

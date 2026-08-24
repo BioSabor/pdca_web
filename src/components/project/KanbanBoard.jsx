@@ -49,7 +49,7 @@ export default function KanbanBoard({
     }
 
     return (
-        <div className="flex snap-x gap-3 overflow-x-auto pb-4">
+        <div className="scroll-x flex snap-x gap-3 pb-4">
             {statuses.map((status) => {
                 const list = byStatus[status.id] || [];
                 const limit = wipLimits[status.id];
@@ -67,7 +67,7 @@ export default function KanbanBoard({
                         }}
                         onDrop={() => handleDrop(status.id)}
                         className={cn(
-                            "flex w-72 flex-shrink-0 snap-start flex-col rounded-xl border bg-surface-2/50 transition-colors",
+                            "flex w-[17rem] flex-shrink-0 snap-start flex-col rounded-2xl border bg-surface-2/50 transition-colors sm:w-72",
                             dragOverColumn === status.id ? "border-brand-400 bg-brand-500/10" : "border-line",
                             overLimit && "border-amber-400"
                         )}
@@ -130,7 +130,7 @@ export default function KanbanBoard({
                 );
             })}
             {orphans.length > 0 && (
-                <section className="w-72 flex-shrink-0 rounded-xl border border-dashed border-line p-3">
+                <section className="w-[17rem] flex-shrink-0 rounded-2xl border border-dashed border-line p-3 sm:w-72">
                     <h3 className="mb-2 text-sm font-semibold text-gray-500 dark:text-gray-400">
                         Estado desconocido
                     </h3>

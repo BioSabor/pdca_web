@@ -22,12 +22,12 @@ export default function LineChart({ points, ariaLabel, height = 180 }) {
     const gridLines = [0.25, 0.5, 0.75, 1].map((f) => padTop + innerH - f * innerH);
 
     return (
-        <div className="w-full overflow-x-auto">
+        <div className="scroll-x w-full">
             <svg
                 viewBox={`0 0 ${width} ${height}`}
                 role="img"
                 aria-label={ariaLabel}
-                className="w-full min-w-[420px]"
+                className="w-full min-w-[320px]"
                 onMouseLeave={() => setHovered(null)}
             >
                 {/* Rejilla recesiva */}

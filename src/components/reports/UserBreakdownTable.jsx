@@ -11,7 +11,7 @@ function DetailGroups({ groups, renderItem, emptyDetailText }) {
     return (
         <div className="space-y-3">
             {groups.map((group) => (
-                <div key={group.id} className="rounded-lg border border-line bg-surface p-3">
+                <div key={group.id} className="rounded-xl border border-line bg-surface p-3">
                     <p className="mb-1.5 text-xs font-semibold text-gray-800 dark:text-gray-100">
                         {group.title} ({group.items.length})
                     </p>
@@ -98,7 +98,7 @@ export default function UserBreakdownTable({
             </div>
 
             {/* Escritorio: tabla */}
-            <div className="card hidden overflow-x-auto lg:block">
+            <div className="card hidden scroll-x lg:block">
                 <table className="w-full min-w-[640px] text-sm">
                     <thead className="bg-surface-2">
                         <tr>

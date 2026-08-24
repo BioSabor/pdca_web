@@ -107,7 +107,7 @@ export default function MentionTextarea({
             {mentionQuery !== null && suggestions.length > 0 &&
                 createPortal(
                     <div
-                        className="z-popover max-h-52 overflow-y-auto rounded-lg border border-line bg-surface shadow-overlay"
+                        className="z-popover max-h-52 max-w-[calc(100vw-1rem)] overflow-y-auto overscroll-contain rounded-xl border border-line bg-surface shadow-overlay"
                         style={{ position: "fixed", top: anchorPos.top, left: anchorPos.left, minWidth: 220 }}
                     >
                         {suggestions.map((u, i) => (

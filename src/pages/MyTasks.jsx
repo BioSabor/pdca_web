@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
-import { AlertTriangle, CalendarClock, CalendarDays, CalendarX2, ListTodo, Inbox } from "lucide-react";
+import { AlertTriangle, CalendarClock, CalendarDays, CalendarX2, Check, ChevronRight, ListTodo, Inbox } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import useRealtimeMyActions from "../hooks/useRealtimeMyActions";
 import useRealtimeProjects from "../hooks/useRealtimeProjects";
@@ -13,7 +13,8 @@ import PriorityBadge from "../components/ui/PriorityBadge";
 import { useToast } from "../components/ui/Toast";
 import { actionEvents } from "../services/actionEvents";
 import { getStatusConfig, getStatusStyle } from "../lib/status";
-import { isClosedStatus } from "../lib/progress";
+import { cn } from "../lib/utils";
+import { isClosedStatus, isDoneStatus } from "../lib/progress";
 import { priorityWeight } from "../lib/priority";
 import { getPhaseConfig } from "../lib/pdca";
 import { todayLocalISO, endOfWeekISO, formatShortDate } from "../lib/dates";
@@ -69,6 +70,9 @@ export default function MyTasks() {
     }, [actions, statuses, projectsById]);
 
     const totalOpen = GROUP_DEFS.reduce((sum, g) => sum + groups[g.id].length, 0);
+
+    // Primer estado "terminado" configurado: alimenta el círculo de completar
+    const doneStatus = useMemo(() => statuses.find(isDoneStatus) || null, [statuses]);
 
     async function handleStatusChange(action, statusId) {
         const statusCfg = getStatusConfig(statuses, statusId);
@@ -133,20 +137,21 @@ export default function MyTasks() {
                         const Icon = groupDef.icon;
                         return (
                             <section key={groupDef.id}>
-                                <h2 className={`mb-2 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide ${groupDef.accent}`}>
-                                    <Icon className="h-4 w-4" />
-                                    {groupDef.label}
-                                    <span className="badge bg-surface-2 font-normal normal-case text-gray-500 dark:text-gray-300">
+                                <h2 className={`mb-2 flex items-center gap-2 px-1 text-sm font-semibold uppercase tracking-wide ${groupDef.accent}`}>
+                                    <Icon className="h-4 w-4 flex-shrink-0" />
+                                    <span className="min-w-0 truncate">{groupDef.label}</span>
+                                    <span className="badge ml-auto flex-shrink-0 bg-surface-2 font-normal normal-case text-gray-500 dark:text-gray-300">
                                         {list.length}
                                     </span>
                                 </h2>
-                                <div className="card divide-y divide-line">
+                                <div className="space-y-2">
                                     {list.map((action) => (
-                                        <TaskRow
+                                        <TaskCard
                                             key={`${action.projectId}-${action.id}`}
                                             action={action}
                                             project={projectsById[action.projectId]}
                                             statuses={statuses}
+                                            doneStatus={doneStatus}
                                             overdue={groupDef.id === "overdue"}
                                             onStatusChange={handleStatusChange}
                                         />
@@ -161,49 +166,86 @@ export default function MyTasks() {
     );
 }
 
-function TaskRow({ action, project, statuses, overdue, onStatusChange }) {
+/**
+ * Tarjeta de tarea: círculo para completar a la izquierda, título y metadatos
+ * apilados y selector de estado. Cada tarea es su propia tarjeta (no una fila
+ * de una lista dividida), para que se lea bien con el pulgar en móvil.
+ */
+function TaskCard({ action, project, statuses, doneStatus, overdue, onStatusChange }) {
     const phase = getPhaseConfig(action.phase);
     return (
-        <div className="flex flex-col gap-2 p-3 sm:flex-row sm:items-center sm:gap-3">
-            <div className="min-w-0 flex-1">
-                <Link
-                    to={`/projects/${action.projectId}?action=${action.id}`}
-                    className="block truncate text-sm font-medium text-gray-800 hover:text-brand-600 dark:text-gray-100 dark:hover:text-brand-400"
-                    title={action.action}
+        <div className="card-interactive flex items-start gap-3 p-3">
+            {doneStatus && (
+                <button
+                    type="button"
+                    onClick={() => onStatusChange(action, doneStatus.id)}
+                    aria-label={`Marcar "${action.action}" como ${doneStatus.label}`}
+                    title={`Marcar como ${doneStatus.label}`}
+                    className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full border-2 border-gray-300 text-transparent transition-colors hover:border-green-500 hover:text-green-500 dark:border-gray-600"
                 >
-                    {action.seqId ? `#${action.seqId} · ` : ""}{action.action}
-                </Link>
-                <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-500 dark:text-gray-400">
-                    <span className="truncate">{project?.title || "Proyecto"}</span>
-                    {phase && (
-                        <span
-                            className="badge"
-                            style={{ backgroundColor: `${phase.color}22`, color: phase.color }}
-                        >
-                            {phase.label}
+                    <Check className="h-4 w-4" strokeWidth={3} />
+                </button>
+            )}
+
+            <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                <div className="min-w-0 flex-1">
+                    <Link
+                        to={`/projects/${action.projectId}?action=${action.id}`}
+                        className="flex items-start gap-1 text-sm font-medium text-gray-800 hover:text-brand-600 dark:text-gray-100 dark:hover:text-brand-400"
+                        title={action.action}
+                    >
+                        <span className="line-clamp-2 min-w-0 flex-1 leading-snug">
+                            {action.seqId ? (
+                                <span className="mr-1 text-xs text-gray-400 dark:text-gray-500">
+                                    #{action.seqId}
+                                </span>
+                            ) : null}
+                            {action.action}
                         </span>
-                    )}
-                    <PriorityBadge priority={action.priority} showLabel={false} />
+                        <ChevronRight className="mt-0.5 h-4 w-4 flex-shrink-0 text-gray-300 dark:text-gray-600" />
+                    </Link>
+
                     {action.proposedEndDate && (
-                        <span className={overdue ? "font-medium text-red-600 dark:text-red-400" : ""}>
+                        <p
+                            className={cn(
+                                "mt-1 text-xs font-medium",
+                                overdue
+                                    ? "text-red-600 dark:text-red-400"
+                                    : "text-amber-600 dark:text-amber-400"
+                            )}
+                        >
                             {formatShortDate(action.proposedEndDate)}
-                        </span>
+                        </p>
                     )}
+
+                    <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-500 dark:text-gray-400">
+                        <span className="max-w-full truncate">{project?.title || "Proyecto"}</span>
+                        {phase && (
+                            <span
+                                className="badge"
+                                style={{ backgroundColor: `${phase.color}22`, color: phase.color }}
+                            >
+                                {phase.label}
+                            </span>
+                        )}
+                        <PriorityBadge priority={action.priority} showLabel={false} />
+                    </div>
                 </div>
+
+                <select
+                    value={action.status || ""}
+                    onChange={(e) => onStatusChange(action, e.target.value)}
+                    aria-label={`Estado de la acción ${action.action}`}
+                    className="w-auto max-w-full flex-shrink-0 cursor-pointer self-start rounded-lg border-0 px-2 py-1.5 text-xs font-medium sm:w-44"
+                    style={getStatusStyle(statuses, action.status)}
+                >
+                    {statuses.map((s) => (
+                        <option key={s.id} value={s.id}>
+                            {s.label}
+                        </option>
+                    ))}
+                </select>
             </div>
-            <select
-                value={action.status || ""}
-                onChange={(e) => onStatusChange(action, e.target.value)}
-                aria-label={`Estado de la acción ${action.action}`}
-                className="w-full flex-shrink-0 cursor-pointer rounded-lg border-0 px-2 py-1.5 text-xs font-medium sm:w-44"
-                style={getStatusStyle(statuses, action.status)}
-            >
-                {statuses.map((s) => (
-                    <option key={s.id} value={s.id}>
-                        {s.label}
-                    </option>
-                ))}
-            </select>
         </div>
     );
 }

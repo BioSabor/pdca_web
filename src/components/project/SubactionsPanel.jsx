@@ -60,7 +60,7 @@ export default function SubactionsPanel({ action, statuses, userOptions, onChang
                 <div className="text-xs text-gray-400 dark:text-gray-500">Sin subacciones.</div>
             )}
             {subactions.map((sub) => (
-                <div key={sub.id} className="rounded-lg border border-line bg-surface p-3">
+                <div key={sub.id} className="rounded-xl border border-line bg-surface p-3">
                     <div className="flex flex-wrap items-center gap-2">
                         <input
                             type="text"
@@ -100,7 +100,7 @@ export default function SubactionsPanel({ action, statuses, userOptions, onChang
                 </div>
             ))}
 
-            <div className="rounded-lg border border-dashed border-line bg-surface p-3">
+            <div className="rounded-xl border border-dashed border-line bg-surface p-3">
                 <div className="flex flex-wrap items-center gap-2">
                     <input
                         type="text"

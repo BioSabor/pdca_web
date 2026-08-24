@@ -31,7 +31,7 @@ export default function Modal({
 
     return createPortal(
         <div
-            className="fixed inset-0 z-modal flex items-center justify-center bg-black/50 p-4"
+            className="fixed inset-0 z-modal flex items-center justify-center bg-black/50 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-sm sm:p-4"
             onMouseDown={closeOnBackdrop ? (e) => { if (e.target === e.currentTarget) onClose?.(); } : undefined}
         >
             <div
@@ -41,13 +41,13 @@ export default function Modal({
                 aria-labelledby={title ? titleId : undefined}
                 tabIndex={-1}
                 className={cn(
-                    "flex max-h-[90dvh] w-full flex-col rounded-2xl bg-surface shadow-overlay outline-none",
+                    "flex max-h-[90dvh] w-full flex-col overflow-hidden rounded-2xl border border-line bg-surface shadow-overlay outline-none",
                     SIZES[size] || SIZES.md
                 )}
             >
                 {title && (
-                    <div className="flex items-center justify-between gap-4 border-b border-line px-5 py-4">
-                        <h2 id={titleId} className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                    <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-3 sm:px-5 sm:py-4">
+                        <h2 id={titleId} className="min-w-0 text-base font-semibold text-gray-900 dark:text-gray-100 sm:text-lg">
                             {title}
                         </h2>
                         <button
@@ -60,11 +60,11 @@ export default function Modal({
                         </button>
                     </div>
                 )}
-                <div className={cn("flex-1 overflow-y-auto px-5 py-4", contentClassName)}>
+                <div className={cn("flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5", contentClassName)}>
                     {children}
                 </div>
                 {footer && (
-                    <div className="flex flex-wrap items-center justify-end gap-3 border-t border-line px-5 py-4">
+                    <div className="flex flex-wrap items-center justify-end gap-2 border-t border-line px-4 py-3 sm:gap-3 sm:px-5 sm:py-4">
                         {footer}
                     </div>
                 )}

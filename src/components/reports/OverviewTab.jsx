@@ -18,18 +18,21 @@ const WEEKS_SHOWN = 12;
 
 function KpiTile({ icon: Icon, iconClass, value, label, hint }) {
     return (
-        <div className="card p-4">
-            <div className="flex items-center gap-3">
-                <div className={cn("rounded-lg p-2", iconClass)}>
+        <div className="card flex flex-col p-3 md:p-4">
+            <div className="flex items-start gap-3">
+                <div className={cn("flex-shrink-0 rounded-xl p-2", iconClass)}>
                     <Icon className="h-5 w-5" aria-hidden="true" />
                 </div>
-                <div className="min-w-0">
-                    <p className="text-2xl font-bold tabular-nums text-gray-800 dark:text-gray-100">{value}</p>
-                    <p className="truncate text-xs text-gray-500 dark:text-gray-400" title={hint || label}>
-                        {label}
-                    </p>
-                </div>
+                <p className="text-2xl font-bold tabular-nums leading-none text-gray-800 dark:text-gray-100">
+                    {value}
+                </p>
             </div>
+            <p
+                className="mt-2 text-xs leading-tight text-gray-500 dark:text-gray-400"
+                title={hint || label}
+            >
+                {label}
+            </p>
         </div>
     );
 }

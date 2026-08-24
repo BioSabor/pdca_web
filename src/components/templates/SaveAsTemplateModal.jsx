@@ -72,7 +72,7 @@ export default function SaveAsTemplateModal({ open, onClose, project, actions, c
                         onChange={(e) => setDescription(e.target.value)}
                     />
                 </Field>
-                <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-line px-3 py-2 hover:bg-surface-2">
+                <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-line px-3 py-2 hover:bg-surface-2">
                     <input
                         type="checkbox"
                         checked={includeDates}

@@ -104,7 +104,7 @@ export default function ActionComments({ projectId, action, projectUsers, projec
                     {comments.map((comment) => {
                         const own = comment.authorId === currentUser?.uid;
                         return (
-                            <li key={comment.id} className="rounded-lg bg-surface-2/60 p-2.5">
+                            <li key={comment.id} className="rounded-xl bg-surface-2/60 p-2.5">
                                 <div className="flex items-center justify-between gap-2">
                                     <span className="text-xs font-medium text-gray-700 dark:text-gray-200">
                                         {comment.authorName || "Usuario"}

@@ -364,7 +364,7 @@ export default function UserManagement() {
                     </div>
 
                     {/* Tabla en escritorio */}
-                    <div className="card hidden overflow-x-auto md:block">
+                    <div className="card hidden scroll-x md:block">
                         <table className="w-full min-w-[720px] divide-y divide-line">
                             <thead className="bg-surface-2">
                                 <tr>

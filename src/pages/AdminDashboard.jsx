@@ -20,10 +20,12 @@ export default function AdminDashboard() {
     return (
         <PageContainer maxWidth="6xl" title="Panel de Administración" backTo="/">
             {/* Pestañas */}
+            {/* Control segmentado que se pliega en móvil: ninguna pestaña
+                queda fuera de pantalla */}
             <div
                 role="tablist"
                 aria-label="Secciones de administración"
-                className="mb-6 flex overflow-x-auto border-b border-line"
+                className="mb-6 flex flex-wrap gap-1 rounded-2xl border border-line bg-surface-2 p-1"
             >
                 {TABS.map(({ id, label, icon: Icon }) => (
                     <button
@@ -33,13 +35,13 @@ export default function AdminDashboard() {
                         aria-selected={activeTab === id}
                         onClick={() => setActiveTab(id)}
                         className={cn(
-                            "flex flex-shrink-0 items-center gap-2 whitespace-nowrap border-b-2 px-3 py-3 text-sm font-medium transition-colors md:px-6",
+                            "flex min-w-[7.5rem] flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-xl px-3 py-2 text-sm font-medium transition-colors sm:px-4",
                             activeTab === id
-                                ? "border-brand-600 text-brand-600 dark:text-brand-400"
-                                : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-400 dark:hover:border-gray-600 dark:hover:text-gray-200"
+                                ? "bg-surface text-brand-600 shadow-card dark:text-brand-300"
+                                : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
                         )}
                     >
-                        <Icon className="h-4 w-4" />
+                        <Icon className="h-4 w-4 flex-shrink-0" />
                         {label}
                     </button>
                 ))}

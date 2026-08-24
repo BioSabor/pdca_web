@@ -4,8 +4,8 @@
   "description": "Aplicación de gestión de proyectos con metodología PDCA",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#2563eb",
+  "background_color": "#f6f4fd",
+  "theme_color": "#4f46e5",
   "orientation": "any",
   "icons": [
     {
