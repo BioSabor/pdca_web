@@ -48,6 +48,13 @@ export default function Dashboard() {
 
     const loading = loadingProjects || loadingActions || loadingStatuses || loadingDepts;
 
+    // Los proyectos archivados no computan en estadísticas ni pendientes
+    const activeProjects = useMemo(() => projects.filter((p) => !p.archived), [projects]);
+    const archivedProjectIds = useMemo(
+        () => new Set(projects.filter((p) => p.archived).map((p) => p.id)),
+        [projects]
+    );
+
     const { projectStats, globalStats } = useMemo(() => {
         if (!currentUser || projects.length === 0) {
             return { projectStats: {}, globalStats: { totalPending: 0, totalPriority: 0 } };
@@ -77,6 +84,9 @@ export default function Dashboard() {
                 projectPending: actions.filter(isOpen).length,
                 progress: computeProgress(actions, statuses).pct,
             };
+            // Las tarjetas de proyectos archivados siguen mostrando sus cifras,
+            // pero no suman al resumen global.
+            if (project.archived) continue;
             totalPending += myPending.length;
             totalPriority += myPriority.length;
         }
@@ -93,6 +103,7 @@ export default function Dashboard() {
         let week = 0;
         for (const a of allActions) {
             if (!a.assignedUsers?.includes(currentUser.uid)) continue;
+            if (archivedProjectIds.has(a.projectId)) continue;
             if (isClosedStatus(getStatusConfig(statuses, a.status))) continue;
             const due = a.proposedEndDate;
             if (!due) continue;
@@ -101,7 +112,7 @@ export default function Dashboard() {
             else if (due <= weekEnd) week++;
         }
         return { overdue, today: todayCount, week };
-    }, [allActions, statuses, currentUser]);
+    }, [allActions, statuses, currentUser, archivedProjectIds]);
 
     function getUserName(uid) {
         const user = allUsers.find((u) => u.id === uid);
@@ -215,9 +226,9 @@ export default function Dashboard() {
                     <StatTile
                         icon={CheckCircle}
                         accent="#22C55E"
-                        value={projects.length}
+                        value={activeProjects.length}
                         label="Proyectos"
-                        title="Proyectos en los que participas"
+                        title="Proyectos activos en los que participas"
                     />
                 </div>
 

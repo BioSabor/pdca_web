@@ -100,8 +100,18 @@ export default function CalendarPage() {
     const { users: usersData, loading: loadingUsers, error: errorUsers, retry: retryUsers } = useRealtimeUsers();
     const { statuses, loading: loadingStatuses, error: errorStatuses, retry: retryStatuses } = useRealtimeStatuses();
 
-    const actions = isAdmin ? allActions : myProjectActions;
+    const rawActions = isAdmin ? allActions : myProjectActions;
     const projects = isAdmin ? allProjects : myProjects;
+
+    // Los proyectos archivados no aportan acciones al calendario
+    const archivedProjectIds = useMemo(
+        () => new Set(projects.filter((p) => p.archived).map((p) => p.id)),
+        [projects]
+    );
+    const actions = useMemo(
+        () => rawActions.filter((a) => !archivedProjectIds.has(a.projectId)),
+        [rawActions, archivedProjectIds]
+    );
 
     const loading =
         (isAdmin

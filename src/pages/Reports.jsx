@@ -120,8 +120,12 @@ export default function Reports() {
     const projects = isAdmin ? allProjects : myProjects;
     const actions = isAdmin ? allActions : myActions;
 
+    // Los proyectos archivados quedan fuera de los informes: ni sus acciones
+    // ni sus cifras computan, y tampoco aparecen en el filtro de proyectos.
+    const activeProjects = useMemo(() => projects.filter((p) => !p.archived), [projects]);
+
     const scopedProjects = useMemo(() => {
-        return projects.filter((project) => {
+        return activeProjects.filter((project) => {
             if (
                 selectedDepartments.length > 0 &&
                 !(project.assignedDepartments || []).some((id) => selectedDepartments.includes(id))
@@ -131,7 +135,7 @@ export default function Reports() {
             if (selectedProjects.length > 0 && !selectedProjects.includes(project.id)) return false;
             return true;
         });
-    }, [projects, selectedDepartments, selectedProjects]);
+    }, [activeProjects, selectedDepartments, selectedProjects]);
 
     const scopedActions = useMemo(() => {
         const scopedIds = new Set(scopedProjects.map((p) => p.id));
@@ -196,7 +200,7 @@ export default function Reports() {
                 <>
                     <ReportsFilters
                         departments={departments}
-                        projects={projects}
+                        projects={activeProjects}
                         selectedDepartments={selectedDepartments}
                         onDepartmentsChange={setSelectedDepartments}
                         selectedProjects={selectedProjects}
