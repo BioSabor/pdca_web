@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Plus } from "lucide-react";
 import KanbanCard from "./KanbanCard";
 import useKanbanDrag from "../../hooks/useKanbanDrag";
 import { getStatusConfig } from "../../lib/status";
@@ -34,6 +34,7 @@ export default function KanbanBoard({
     canEditLimits = false,
     onWipLimitChange,
     highlightId,
+    onAddAction,
 }) {
     const boardRef = useRef(null);
     const [pageByStatus, setPageByStatus] = useState({});
@@ -150,6 +151,17 @@ export default function KanbanBoard({
                                             title="Límite de trabajo en curso (vacío = sin límite)"
                                             className="w-12 rounded border border-line bg-surface px-1 py-0.5 text-center text-xs text-gray-600 dark:text-gray-300"
                                         />
+                                    )}
+                                    {onAddAction && (
+                                        <button
+                                            type="button"
+                                            onClick={() => onAddAction(status.id)}
+                                            aria-label={`Añadir acción en ${status.label}`}
+                                            title="Añadir acción"
+                                            className="btn-icon btn-ghost h-7 min-w-7 flex-shrink-0 p-0"
+                                        >
+                                            <Plus className="h-4 w-4" />
+                                        </button>
                                     )}
                                 </header>
                                 <div

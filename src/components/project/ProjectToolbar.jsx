@@ -1,6 +1,7 @@
 import { Filter, X, FileDown, Plus, History, LayoutTemplate } from "lucide-react";
 import MultiCheckDropdown from "../ui/MultiCheckDropdown";
 import ViewSwitcher from "./ViewSwitcher";
+import VoiceActionButton from "./VoiceActionButton";
 import { cn } from "../../lib/utils";
 
 /**
@@ -22,6 +23,8 @@ export default function ProjectToolbar({
     onExportPdf,
     exportDisabled,
     onNewAction,
+    voiceUserOptions,
+    onVoiceExtracted,
     onShowActivity,
     onSaveTemplate,
     // Vistas que no listan acciones (p. ej. documentación) ocultan
@@ -103,6 +106,9 @@ export default function ProjectToolbar({
                     <FileDown className="h-4 w-4" />
                     <span className="hidden sm:inline">Exportar PDF</span>
                 </button>
+                {onVoiceExtracted && (
+                    <VoiceActionButton userOptions={voiceUserOptions} onExtracted={onVoiceExtracted} />
+                )}
                 <button type="button" onClick={onNewAction} className="btn-primary btn-sm">
                     <Plus className="h-4 w-4" />
                     <span className="hidden xs:inline">Nueva acción</span>

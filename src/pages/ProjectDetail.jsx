@@ -12,6 +12,7 @@ import useProjectAttachmentCounts from "../hooks/useProjectAttachmentCounts";
 import useActionFilters from "../hooks/useActionFilters";
 import useActionSort from "../hooks/useActionSort";
 import useVisibleColumns from "../hooks/useVisibleColumns";
+import useReorderList from "../hooks/useReorderList";
 
 import ErrorState from "../components/ui/ErrorState";
 import EmptyState from "../components/ui/EmptyState";
@@ -24,7 +25,7 @@ import ProjectToolbar from "../components/project/ProjectToolbar";
 import ActionFiltersBar from "../components/project/ActionFiltersBar";
 import ActionsTable from "../components/project/ActionsTable";
 import ActionCardList from "../components/project/ActionCardList";
-import NewActionForm from "../components/project/NewActionForm";
+import NewActionModal from "../components/project/NewActionModal";
 import GanttView from "../components/project/GanttView";
 import KanbanBoard from "../components/project/KanbanBoard";
 import ActivityPanel from "../components/project/ActivityPanel";
@@ -32,7 +33,7 @@ import ProjectDocuments from "../components/project/ProjectDocuments";
 import SaveAsTemplateModal from "../components/templates/SaveAsTemplateModal";
 
 import { actionEvents } from "../services/actionEvents";
-import { projectService } from "../services/projectService";
+import { projectService, actionService } from "../services/projectService";
 import { deleteAllAttachments } from "../services/attachmentService";
 import { getStatusConfig } from "../lib/status";
 import { formatShortDate, formatTimestampDate, todayLocalISO } from "../lib/dates";
@@ -89,6 +90,8 @@ export default function ProjectDetail() {
 
     const [showFilters, setShowFilters] = useState(false);
     const [showNewRow, setShowNewRow] = useState(false);
+    const [newActionStatus, setNewActionStatus] = useState(null);
+    const [voiceExtraction, setVoiceExtraction] = useState(null);
     const [showActivity, setShowActivity] = useState(false);
     const [showSaveTemplate, setShowSaveTemplate] = useState(false);
 
@@ -141,6 +144,51 @@ export default function ProjectDetail() {
     const filteredActions = filtersApi.filterActions(actions);
     const sortedActions = sortApi.sortActions(filteredActions, { statuses, getUserName });
 
+    // Arrastrar y soltar para reordenar (tabla/tarjetas): solo tiene sentido
+    // cuando se ve el orden natural (sin columna de tabla elegida), que es
+    // justo el que refleja el campo "orden" persistido.
+    const ACTIONS_GROUP = "actions";
+    const reorderEnabled = !sortApi.sortColumn;
+    const actionsById = {};
+    sortedActions.forEach((a) => (actionsById[a.id] = a));
+
+    async function handleReorderActions(_groupId, order) {
+        const updates = [];
+        order.forEach((actionId, index) => {
+            const action = actionsById[actionId];
+            const newOrden = (index + 1) * 10;
+            if (action && (action.orden ?? null) !== newOrden) {
+                updates.push({ id: actionId, orden: newOrden });
+            }
+        });
+        if (updates.length === 0) return;
+        try {
+            await actionService.reorderActions(id, updates);
+        } catch (err) {
+            console.error(err);
+            toast.error("No se pudo guardar el orden.");
+        }
+    }
+
+    const {
+        dragKey: reorderDragKey,
+        liveOrder: reorderLiveOrder,
+        dragWidth: reorderDragWidth,
+        previewRef: reorderPreviewRef,
+        getHandleProps: getReorderHandleProps,
+        getItemProps: getReorderItemProps,
+    } = useReorderList({
+        groups: { [ACTIONS_GROUP]: sortedActions.map((a) => a.id) },
+        onReorder: handleReorderActions,
+        disabled: !reorderEnabled,
+    });
+
+    const displayActions =
+        reorderDragKey && reorderLiveOrder
+            ? reorderLiveOrder.map((actionId) => actionsById[actionId]).filter(Boolean)
+            : sortedActions;
+    const dragAction = reorderDragKey ? actionsById[reorderDragKey] : null;
+
     // ctx para la fachada de eventos de acciones
     const ctx = {
         actorId: uid,
@@ -163,7 +211,7 @@ export default function ProjectDetail() {
         try {
             await actionEvents.createAction(ctx, id, data);
             toast.success("Acción creada.");
-            setShowNewRow(false);
+            handleCloseNewAction();
             return true;
         } catch {
             toast.error("Error al añadir la acción.");
@@ -311,8 +359,26 @@ export default function ProjectDetail() {
     }
 
     function handleNewAction() {
-        setView("table");
+        setNewActionStatus(null);
+        setVoiceExtraction(null);
         setShowNewRow(true);
+    }
+
+    function handleAddActionToColumn(statusId) {
+        setNewActionStatus(statusId);
+        setVoiceExtraction(null);
+        setShowNewRow(true);
+    }
+
+    function handleVoiceExtracted(result) {
+        setNewActionStatus(null);
+        setVoiceExtraction(result);
+        setShowNewRow(true);
+    }
+
+    function handleCloseNewAction() {
+        setShowNewRow(false);
+        setVoiceExtraction(null);
     }
 
     // Límites WIP del kanban (editables por el creador)
@@ -383,6 +449,8 @@ export default function ProjectDetail() {
                 onExportPdf={handleExportPdf}
                 exportDisabled={sortedActions.length === 0}
                 onNewAction={handleNewAction}
+                voiceUserOptions={projectUserOptions}
+                onVoiceExtracted={handleVoiceExtracted}
                 onShowActivity={() => setShowActivity(true)}
                 onSaveTemplate={isCreator ? () => setShowSaveTemplate(true) : undefined}
                 showFilterControls={view !== "docs"}
@@ -416,24 +484,14 @@ export default function ProjectDetail() {
                     canEditLimits={isCreator}
                     onWipLimitChange={handleWipLimitChange}
                     highlightId={highlightId}
+                    onAddAction={handleAddActionToColumn}
                 />
             ) : (
                 <>
                     {/* Móvil: tarjetas */}
-                    <div className="space-y-2 lg:hidden">
-                        {showNewRow && (
-                            <NewActionForm
-                                variant="card"
-                                statuses={statuses}
-                                userOptions={projectUserOptions}
-                                requiredFields={requiredFields}
-                                isColumnVisible={isColumnVisible}
-                                onSubmit={createAction}
-                                onCancel={() => setShowNewRow(false)}
-                            />
-                        )}
+                    <div className="space-y-2 lg:hidden" data-reorder-list={ACTIONS_GROUP}>
                         <ActionCardList
-                            actions={sortedActions}
+                            actions={displayActions}
                             statuses={statuses}
                             projectUserOptions={projectUserOptions}
                             getUserName={getUserName}
@@ -447,13 +505,17 @@ export default function ProjectDetail() {
                             currentUserId={uid}
                             projectUsers={projectUsers}
                             projectTitle={project.title}
+                            reorderEnabled={reorderEnabled}
+                            dragKey={reorderDragKey}
+                            getItemProps={getReorderItemProps}
+                            getHandleProps={(actionId) => getReorderHandleProps(ACTIONS_GROUP, actionId)}
                         />
                     </div>
 
                     {/* Desktop: tabla */}
-                    <div className="hidden lg:block">
+                    <div className="hidden lg:block" data-reorder-list={ACTIONS_GROUP}>
                         <ActionsTable
-                            actions={sortedActions}
+                            actions={displayActions}
                             statuses={statuses}
                             projectUserOptions={projectUserOptions}
                             getUserName={getUserName}
@@ -467,17 +529,48 @@ export default function ProjectDetail() {
                             highlightId={highlightId}
                             registerRowRef={registerRowRef("t")}
                             hasActiveFilters={filtersApi.hasActiveFilters}
-                            showNewForm={showNewRow}
-                            onCreate={createAction}
-                            onCancelNew={() => setShowNewRow(false)}
                             projectId={id}
                             currentUserId={uid}
                             projectUsers={projectUsers}
+                            reorderEnabled={reorderEnabled}
+                            dragKey={reorderDragKey}
+                            getItemProps={getReorderItemProps}
+                            getHandleProps={(actionId) => getReorderHandleProps(ACTIONS_GROUP, actionId)}
                             projectTitle={project.title}
                         />
                     </div>
                 </>
             )}
+
+            {/* Tarjeta fantasma que sigue al puntero/dedo al reordenar acciones */}
+            {dragAction && (
+                <div
+                    ref={reorderPreviewRef}
+                    className="pointer-events-none fixed left-0 top-0 z-50 w-64 rotate-1 scale-[1.02] rounded-xl border border-line bg-surface px-3 py-2 shadow-card-hover ring-2 ring-brand-500 will-change-transform"
+                    style={{ width: reorderDragWidth }}
+                    aria-hidden="true"
+                >
+                    <p className="line-clamp-2 text-sm text-gray-800 dark:text-gray-100">
+                        {dragAction.seqId ? (
+                            <span className="mr-1 text-xs text-gray-400 dark:text-gray-500">
+                                #{dragAction.seqId}
+                            </span>
+                        ) : null}
+                        {dragAction.action}
+                    </p>
+                </div>
+            )}
+
+            <NewActionModal
+                open={showNewRow}
+                onClose={handleCloseNewAction}
+                statuses={statuses}
+                userOptions={projectUserOptions}
+                requiredFields={requiredFields}
+                initialStatus={newActionStatus}
+                voiceExtraction={voiceExtraction}
+                onSubmit={createAction}
+            />
 
             <ActivityPanel open={showActivity} onClose={() => setShowActivity(false)} projectId={id} />
 

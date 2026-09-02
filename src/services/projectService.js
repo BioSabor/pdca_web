@@ -175,6 +175,24 @@ export const actionService = {
             }
         }
         await deleteDoc(doc(db, "projects", projectId, "actions", actionId));
+    },
+
+    // Reordenar acciones (arrastrar y soltar): reasigna el campo "orden" con
+    // huecos de 10 a las afectadas. Escritura por lotes al margen de
+    // actionEvents -es una operación masiva de UI, no un cambio que merezca
+    // su propia entrada de actividad por fila (igual que removeUsersFromProjectActions).
+    reorderActions: async (projectId, updates) => {
+        // updates: [{ id, orden }]
+        for (let i = 0; i < updates.length; i += 450) {
+            const batch = writeBatch(db);
+            updates.slice(i, i + 450).forEach(({ id: actionId, orden }) => {
+                batch.update(doc(db, "projects", projectId, "actions", actionId), {
+                    orden,
+                    updatedAt: serverTimestamp()
+                });
+            });
+            await batch.commit();
+        }
     }
 };
 

@@ -1,16 +1,16 @@
 import { Fragment } from "react";
-import { Eye, EyeOff, Plus, Trash2, Paperclip, MessageSquare } from "lucide-react";
+import { ChevronDown, GripVertical, ListTodo, MessageSquare, Paperclip, Trash2 } from "lucide-react";
 import MultiCheckDropdown from "../ui/MultiCheckDropdown";
-import AttachmentToggleButton from "../AttachmentToggleButton";
 import ActionAttachments from "../ActionAttachments";
 import ActionComments from "./ActionComments";
+import Field from "../ui/Field";
 import PrioritySelect from "./PrioritySelect";
 import PhaseSelect from "./PhaseSelect";
 import StatusSelect from "./StatusSelect";
 import SubactionsPanel from "./SubactionsPanel";
 import { getStatusConfig } from "../../lib/status";
 import { isClosedStatus } from "../../lib/progress";
-import { isBeforeToday } from "../../lib/dates";
+import { isBeforeToday, formatShortDate } from "../../lib/dates";
 import { normalizePriority } from "../../lib/priority";
 import { cn } from "../../lib/utils";
 
@@ -20,15 +20,19 @@ function autoResize(el) {
     el.style.height = `${el.scrollHeight}px`;
 }
 
-const DATE_LABELS = {
-    proposedStartDate: "Fecha inicio propuesta",
-    proposedEndDate: "Fecha fin propuesta",
-    startDate: "Fecha inicio real",
-    actualEndDate: "Fecha fin real",
-};
+const DATE_FIELDS = [
+    { field: "proposedStartDate", label: "F. inicio propuesta" },
+    { field: "proposedEndDate", label: "F. fin propuesta" },
+    { field: "startDate", label: "F. inicio real" },
+    { field: "actualEndDate", label: "F. fin real" },
+];
 
 /**
- * Fila de la tabla de acciones con edición inline en tiempo real.
+ * Fila de la tabla de acciones con edición inline en tiempo real. Solo las
+ * columnas de un vistazo (prioridad, acción, responsable, estado, una fecha
+ * resumen) están siempre visibles; fechas exactas, fase, observaciones,
+ * subacciones, adjuntos y comentarios viven en un único panel expandible
+ * (mismo patrón que la tarjeta móvil) para no forzar scroll horizontal.
  * FIX B7: los inputs no controlados llevan key con el valor remoto para
  * remontarse cuando otro usuario edita el mismo campo.
  */
@@ -41,53 +45,66 @@ export default function ActionTableRow({
     assigneeOptions,
     projectUserOptions,
     attachmentCount,
-    expandedObs,
-    expandedSubs,
-    expandedAtts,
-    expandedComments,
-    onToggleObs,
-    onToggleSubs,
-    onToggleAtts,
-    onToggleComments,
+    expanded,
+    onToggleExpand,
     highlighted,
     rowRef,
     projectId,
     currentUserId,
     projectUsers,
     projectTitle,
+    reorderable = false,
+    dragging = false,
+    itemProps,
+    handleProps,
 }) {
     const statusCfg = getStatusConfig(statuses, action.status);
     const closed = isClosedStatus(statusCfg);
     const priority = normalizePriority(action.priority);
     const subactionCount = (action.subactions || []).length;
-    const hasObservations = (action.observations || "").trim().length > 0;
+    const commentsCount = action.commentsCount || 0;
 
-    const dateCell = (field, { overdue = false } = {}) => (
-        <td className="px-1 py-2">
-            <input
-                type="date"
-                defaultValue={action[field] || ""}
-                key={`${field}-${action.id}-${action[field] || ""}`}
-                onChange={(e) => api.updateField(action, field, e.target.value)}
-                aria-label={DATE_LABELS[field]}
-                className={cn(
-                    "w-full rounded border-0 bg-transparent p-0 text-xs focus:ring-1 focus:ring-brand-400",
-                    overdue ? "font-semibold text-red-600" : "text-gray-700 dark:text-gray-200"
-                )}
-            />
-        </td>
-    );
+    // Misma heurística que la tarjeta móvil: fin real si ya está, si no fin
+    // propuesta; en rojo si venció sin fecha real y la acción sigue abierta.
+    const summaryDateRaw =
+        (isColumnVisible("actualEndDate") && action.actualEndDate) ||
+        (isColumnVisible("proposedEndDate") && action.proposedEndDate) ||
+        null;
+    const summaryDateOverdue =
+        isColumnVisible("proposedEndDate") &&
+        !action.actualEndDate &&
+        isBeforeToday(action.proposedEndDate) &&
+        !closed;
+    const showDateColumn = isColumnVisible("proposedEndDate") || isColumnVisible("actualEndDate");
+
+    const anyDetailVisible = DATE_FIELDS.some(({ field }) => isColumnVisible(field));
 
     return (
         <Fragment>
             <tr
                 ref={rowRef}
+                {...itemProps}
                 className={cn(
                     "transition hover:bg-surface-2/60",
                     priority === "high" && "bg-red-50/50 dark:bg-red-900/10",
-                    highlighted && "ring-2 ring-inset ring-brand-500"
+                    highlighted && "ring-2 ring-inset ring-brand-500",
+                    dragging && "opacity-30"
                 )}
             >
+                <td className="px-1 py-2">
+                    {reorderable && (
+                        <span
+                            {...handleProps}
+                            role="button"
+                            tabIndex={-1}
+                            aria-label="Arrastrar para reordenar"
+                            title="Arrastra para reordenar"
+                            className="flex h-7 w-6 cursor-grab touch-none items-center justify-center rounded text-gray-300 active:cursor-grabbing active:bg-surface-2 active:text-brand-500 dark:text-gray-600"
+                        >
+                            <GripVertical className="h-4 w-4" aria-hidden="true" />
+                        </span>
+                    )}
+                </td>
                 <td className="px-3 py-2 text-gray-400 dark:text-gray-500">{action.seqId || "-"}</td>
                 <td className="px-2 py-2">
                     <input
@@ -156,101 +173,59 @@ export default function ActionTableRow({
                         />
                     </td>
                 )}
-                {isColumnVisible("proposedStartDate") && dateCell("proposedStartDate")}
-                {isColumnVisible("proposedEndDate") &&
-                    dateCell("proposedEndDate", {
-                        overdue: isBeforeToday(action.proposedEndDate) && !closed,
-                    })}
-                {isColumnVisible("startDate") && dateCell("startDate")}
-                {isColumnVisible("actualEndDate") && dateCell("actualEndDate")}
-                {isColumnVisible("observations") && (
-                    <td className="px-2 py-2">
-                        <textarea
-                            defaultValue={action.observations || ""}
-                            key={`obsc-${action.id}-${action.observations || ""}`}
-                            onBlur={(e) => {
-                                if (e.target.value !== (action.observations || "")) {
-                                    api.updateField(action, "observations", e.target.value);
-                                }
-                            }}
-                            onInput={(e) => autoResize(e.target)}
-                            ref={(el) => {
-                                if (el) setTimeout(() => autoResize(el), 0);
-                            }}
-                            rows={1}
-                            placeholder="Observaciones..."
-                            aria-label="Observaciones"
-                            className="w-full min-w-[140px] resize-none overflow-hidden rounded border-0 bg-transparent px-1 py-0.5 text-xs text-gray-700 focus:ring-1 focus:ring-brand-400 dark:text-gray-200"
-                        />
-                    </td>
-                )}
-                <td className="px-1 py-2 text-center">
-                    <button
-                        type="button"
-                        onClick={onToggleObs}
-                        aria-label={expandedObs ? "Ocultar observaciones" : "Ver observaciones"}
-                        aria-expanded={expandedObs}
-                        className={cn(
-                            "rounded p-1 transition",
-                            hasObservations
-                                ? "text-brand-500 hover:bg-brand-50 hover:text-brand-700 dark:hover:bg-brand-900/30"
-                                : "text-gray-300 hover:bg-surface-2 hover:text-gray-500 dark:text-gray-600 dark:hover:text-gray-400"
+                {showDateColumn && (
+                    <td className="px-2 py-2 text-xs">
+                        {summaryDateRaw ? (
+                            <span className={cn(summaryDateOverdue && "font-semibold text-red-600")}>
+                                {formatShortDate(summaryDateRaw)}
+                            </span>
+                        ) : (
+                            <span className="text-gray-300 dark:text-gray-600">–</span>
                         )}
-                    >
-                        {hasObservations ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-                    </button>
-                </td>
-                {isColumnVisible("subactions") && (
-                    <td className="px-1 py-2 text-center">
-                        <button
-                            type="button"
-                            onClick={onToggleSubs}
-                            aria-label={`Subacciones (${subactionCount})`}
-                            aria-expanded={expandedSubs}
-                            className="rounded p-1 text-gray-500 transition hover:bg-brand-50 hover:text-brand-600 dark:text-gray-400 dark:hover:bg-brand-900/30 dark:hover:text-brand-300"
-                        >
-                            {subactionCount > 0 ? (
-                                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-brand-600 text-xs text-white">
-                                    {subactionCount}
-                                </span>
-                            ) : (
-                                <Plus className="h-4 w-4" />
-                            )}
-                        </button>
                     </td>
                 )}
-                {isColumnVisible("attachments") && (
-                    <td className="px-1 py-2 text-center">
-                        <AttachmentToggleButton
-                            count={attachmentCount}
-                            isExpanded={expandedAtts}
-                            onClick={onToggleAtts}
-                        />
-                    </td>
-                )}
-                {isColumnVisible("comments") && (
-                    <td className="px-1 py-2 text-center">
+                <td className="px-2 py-2">
+                    <div className="flex items-center justify-end gap-1">
+                        {isColumnVisible("subactions") && subactionCount > 0 && (
+                            <span
+                                className="inline-flex items-center gap-0.5 rounded-full bg-surface-2 px-1.5 py-0.5 text-[10px] text-gray-500 dark:text-gray-400"
+                                title={`${subactionCount} subacción(es)`}
+                            >
+                                <ListTodo className="h-3 w-3" /> {subactionCount}
+                            </span>
+                        )}
+                        {isColumnVisible("attachments") && attachmentCount > 0 && (
+                            <span
+                                className="inline-flex items-center gap-0.5 rounded-full bg-surface-2 px-1.5 py-0.5 text-[10px] text-gray-500 dark:text-gray-400"
+                                title={`${attachmentCount} adjunto(s)`}
+                            >
+                                <Paperclip className="h-3 w-3" /> {attachmentCount}
+                            </span>
+                        )}
+                        {isColumnVisible("comments") && commentsCount > 0 && (
+                            <span
+                                className="inline-flex items-center gap-0.5 rounded-full bg-surface-2 px-1.5 py-0.5 text-[10px] text-gray-500 dark:text-gray-400"
+                                title={`${commentsCount} comentario(s)`}
+                            >
+                                <MessageSquare className="h-3 w-3" /> {commentsCount}
+                            </span>
+                        )}
                         <button
                             type="button"
-                            onClick={onToggleComments}
-                            aria-label={`Comentarios (${action.commentsCount || 0})`}
-                            aria-expanded={expandedComments}
+                            onClick={onToggleExpand}
+                            aria-label={expanded ? "Ocultar detalles" : "Ver más detalles"}
+                            aria-expanded={expanded}
                             className={cn(
-                                "relative rounded p-1 transition",
-                                (action.commentsCount || 0) > 0
-                                    ? "text-brand-500 hover:bg-brand-50 hover:text-brand-700 dark:hover:bg-brand-900/30"
-                                    : "text-gray-300 hover:bg-surface-2 hover:text-gray-500 dark:text-gray-600 dark:hover:text-gray-400"
+                                "rounded p-1 transition",
+                                expanded
+                                    ? "bg-brand-50 text-brand-600 dark:bg-brand-900/30 dark:text-brand-400"
+                                    : "text-gray-400 hover:bg-surface-2 hover:text-gray-600 dark:hover:text-gray-300"
                             )}
                         >
-                            <MessageSquare className="h-4 w-4" />
-                            {(action.commentsCount || 0) > 0 && (
-                                <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-brand-600 px-0.5 text-[10px] font-bold leading-none text-white">
-                                    {action.commentsCount}
-                                </span>
-                            )}
+                            <ChevronDown className={cn("h-4 w-4 transition-transform", expanded && "rotate-180")} />
                         </button>
-                    </td>
-                )}
+                    </div>
+                </td>
                 <td className="px-3 py-2">
                     <button
                         type="button"
@@ -263,76 +238,84 @@ export default function ActionTableRow({
                 </td>
             </tr>
 
-            {expandedObs && (
-                <tr className="bg-brand-50/30 dark:bg-brand-900/10">
-                    <td colSpan={totalColumns} className="px-6 py-3">
-                        <div className="flex items-start gap-2">
-                            <span className="flex-shrink-0 pt-1.5 text-xs font-medium text-gray-500 dark:text-gray-400">
-                                Observaciones:
-                            </span>
-                            <textarea
-                                defaultValue={action.observations || ""}
-                                key={`obs-${action.id}-${action.observations || ""}`}
-                                onBlur={(e) => {
-                                    if (e.target.value !== (action.observations || "")) {
-                                        api.updateField(action, "observations", e.target.value);
-                                    }
-                                }}
-                                onInput={(e) => autoResize(e.target)}
-                                ref={(el) => {
-                                    if (el) setTimeout(() => autoResize(el), 0);
-                                }}
-                                rows={2}
-                                placeholder="Escribe observaciones..."
-                                aria-label="Observaciones"
-                                className="input flex-1 resize-none overflow-hidden"
-                            />
-                        </div>
-                    </td>
-                </tr>
-            )}
-
-            {expandedAtts && (
+            {expanded && (
                 <tr className="bg-surface-2/40">
-                    <td colSpan={totalColumns} className="px-6 py-3">
-                        <div className="max-w-2xl">
-                            <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-gray-600 dark:text-gray-300">
-                                <Paperclip className="h-3.5 w-3.5" /> Archivos adjuntos
+                    <td colSpan={totalColumns} className="space-y-4 px-6 py-4">
+                        {anyDetailVisible && (
+                            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                                {DATE_FIELDS.filter(({ field }) => isColumnVisible(field)).map(({ field, label }) => (
+                                    <Field key={field} label={label}>
+                                        <input
+                                            type="date"
+                                            defaultValue={action[field] || ""}
+                                            key={`${field}-${action.id}-${action[field] || ""}`}
+                                            onChange={(e) => api.updateField(action, field, e.target.value)}
+                                            className={cn(
+                                                "input py-1.5 text-xs",
+                                                field === "proposedEndDate" &&
+                                                    isBeforeToday(action.proposedEndDate) &&
+                                                    !closed &&
+                                                    "font-semibold text-red-600"
+                                            )}
+                                        />
+                                    </Field>
+                                ))}
                             </div>
-                            <ActionAttachments
-                                projectId={projectId}
-                                actionId={action.id}
-                                userId={currentUserId}
-                            />
-                        </div>
-                    </td>
-                </tr>
-            )}
+                        )}
 
-            {expandedSubs && (
-                <tr className="bg-surface-2/40">
-                    <td colSpan={totalColumns} className="px-6 py-4">
-                        <SubactionsPanel
-                            action={action}
-                            statuses={statuses}
-                            userOptions={projectUserOptions}
-                            onChangeSubactions={(next) => api.updateSubactions(action, next)}
-                        />
-                    </td>
-                </tr>
-            )}
+                        {isColumnVisible("observations") && (
+                            <Field label="Observaciones">
+                                <textarea
+                                    defaultValue={action.observations || ""}
+                                    key={`obs-${action.id}-${action.observations || ""}`}
+                                    onBlur={(e) => {
+                                        if (e.target.value !== (action.observations || "")) {
+                                            api.updateField(action, "observations", e.target.value);
+                                        }
+                                    }}
+                                    rows={2}
+                                    placeholder="Escribe observaciones..."
+                                    className="input resize-none text-sm"
+                                />
+                            </Field>
+                        )}
 
-            {expandedComments && (
-                <tr className="bg-surface-2/40">
-                    <td colSpan={totalColumns} className="px-6 py-4">
-                        <div className="max-w-2xl">
-                            <ActionComments
-                                projectId={projectId}
-                                action={action}
-                                projectUsers={projectUsers}
-                                projectTitle={projectTitle}
-                            />
-                        </div>
+                        {isColumnVisible("subactions") && (
+                            <div>
+                                <p className="mb-2 text-xs font-semibold text-gray-600 dark:text-gray-300">
+                                    Subacciones {subactionCount > 0 && `(${subactionCount})`}
+                                </p>
+                                <SubactionsPanel
+                                    action={action}
+                                    statuses={statuses}
+                                    userOptions={projectUserOptions}
+                                    onChangeSubactions={(next) => api.updateSubactions(action, next)}
+                                />
+                            </div>
+                        )}
+
+                        {isColumnVisible("attachments") && (
+                            <div className="max-w-2xl">
+                                <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-gray-600 dark:text-gray-300">
+                                    Archivos adjuntos {attachmentCount > 0 && `(${attachmentCount})`}
+                                </div>
+                                <ActionAttachments projectId={projectId} actionId={action.id} userId={currentUserId} />
+                            </div>
+                        )}
+
+                        {isColumnVisible("comments") && (
+                            <div className="max-w-2xl">
+                                <p className="mb-2 text-xs font-semibold text-gray-600 dark:text-gray-300">
+                                    Comentarios {commentsCount > 0 && `(${commentsCount})`}
+                                </p>
+                                <ActionComments
+                                    projectId={projectId}
+                                    action={action}
+                                    projectUsers={projectUsers}
+                                    projectTitle={projectTitle}
+                                />
+                            </div>
+                        )}
                     </td>
                 </tr>
             )}

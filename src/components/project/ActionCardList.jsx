@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Check, ChevronDown, Paperclip, Trash2 } from "lucide-react";
+import { Check, ChevronDown, GripVertical, Paperclip, Trash2 } from "lucide-react";
 import StatusPill from "../ui/StatusPill";
 import PriorityBadge from "../ui/PriorityBadge";
 import Field from "../ui/Field";
@@ -44,6 +44,10 @@ export default function ActionCardList({
     currentUserId,
     projectUsers,
     projectTitle,
+    reorderEnabled = false,
+    dragKey,
+    getItemProps,
+    getHandleProps,
 }) {
     const [expandedCardId, setExpandedCardId] = useState(null);
     const [expandedSubsId, setExpandedSubsId] = useState(null);
@@ -88,13 +92,27 @@ export default function ActionCardList({
                     <div
                         key={action.id}
                         ref={registerRowRef(action.id)}
+                        {...getItemProps(action.id)}
                         className={cn(
                             "card transition-all",
                             priority === "high" && "border-red-300 dark:border-red-800",
-                            highlightId === action.id && "ring-2 ring-brand-500"
+                            highlightId === action.id && "ring-2 ring-brand-500",
+                            dragKey === action.id && "opacity-30"
                         )}
                     >
-                        <div className="flex items-start gap-3 px-3 py-3 sm:px-4">
+                        <div className="flex items-start gap-2 px-3 py-3 sm:px-4">
+                            {reorderEnabled && (
+                                <span
+                                    {...getHandleProps(action.id)}
+                                    role="button"
+                                    tabIndex={-1}
+                                    aria-label="Arrastrar para reordenar"
+                                    title="Arrastra para reordenar"
+                                    className="-ml-1 mt-0.5 flex h-7 w-6 flex-shrink-0 cursor-grab touch-none items-center justify-center rounded-lg text-gray-300 active:cursor-grabbing active:bg-surface-2 active:text-brand-500 dark:text-gray-600"
+                                >
+                                    <GripVertical className="h-4 w-4" aria-hidden="true" />
+                                </span>
+                            )}
                             {doneStatus ? (
                                 <button
                                     type="button"

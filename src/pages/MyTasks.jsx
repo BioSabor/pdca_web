@@ -1,10 +1,12 @@
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { Link } from "react-router-dom";
-import { AlertTriangle, CalendarClock, CalendarDays, CalendarX2, Check, ChevronRight, ListTodo, Inbox } from "lucide-react";
+import { AlertTriangle, CalendarClock, CalendarDays, CalendarX2, Check, ChevronRight, GripVertical, ListTodo, Inbox } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import useRealtimeMyActions from "../hooks/useRealtimeMyActions";
 import useRealtimeProjects from "../hooks/useRealtimeProjects";
 import useRealtimeStatuses from "../hooks/useRealtimeStatuses";
+import useRealtimeMyTasksOrder from "../hooks/useRealtimeMyTasksOrder";
+import useReorderList from "../hooks/useReorderList";
 import PageContainer from "../components/ui/PageContainer";
 import { SkeletonRows } from "../components/ui/Skeleton";
 import EmptyState from "../components/ui/EmptyState";
@@ -12,12 +14,34 @@ import ErrorState from "../components/ui/ErrorState";
 import PriorityBadge from "../components/ui/PriorityBadge";
 import { useToast } from "../components/ui/Toast";
 import { actionEvents } from "../services/actionEvents";
+import { myTasksOrderService } from "../services/myTasksOrderService";
 import { getStatusConfig, getStatusStyle } from "../lib/status";
 import { cn } from "../lib/utils";
 import { isClosedStatus, isDoneStatus } from "../lib/progress";
 import { priorityWeight } from "../lib/priority";
 import { getPhaseConfig } from "../lib/pdca";
 import { todayLocalISO, endOfWeekISO, formatShortDate } from "../lib/dates";
+
+const taskKey = (action) => `${action.projectId}:${action.id}`;
+
+// Aplica el orden manual guardado: las tareas ya posicionadas van primero
+// (en ese orden), y el resto (nuevas o nunca movidas) cae detrás en el
+// orden automático de prioridad/fecha.
+function applyManualOrder(list, order) {
+    if (!order || order.length === 0) return list;
+    const byKey = new Map(list.map((a) => [taskKey(a), a]));
+    const seen = new Set();
+    const ordered = [];
+    for (const key of order) {
+        const action = byKey.get(key);
+        if (action) {
+            ordered.push(action);
+            seen.add(key);
+        }
+    }
+    const rest = list.filter((a) => !seen.has(taskKey(a)));
+    return [...ordered, ...rest];
+}
 
 const GROUP_DEFS = [
     { id: "overdue", label: "Vencidas", icon: AlertTriangle, accent: "text-red-600 dark:text-red-400" },
@@ -33,6 +57,7 @@ export default function MyTasks() {
     const { actions, loading: loadingActions, error, retry } = useRealtimeMyActions(currentUser?.uid);
     const { projects, loading: loadingProjects } = useRealtimeProjects(currentUser?.uid);
     const { statuses, loading: loadingStatuses } = useRealtimeStatuses();
+    const { order: manualOrder } = useRealtimeMyTasksOrder(currentUser?.uid);
 
     const loading = loadingActions || loadingProjects || loadingStatuses;
 
@@ -61,18 +86,50 @@ export default function MyTasks() {
             else result.later.push(action);
         }
 
-        // Dentro de cada grupo: prioridad desc, luego fecha asc
+        // Dentro de cada grupo: prioridad desc, luego fecha asc, y por
+        // encima de todo el orden manual que haya guardado el usuario
         const sortFn = (a, b) =>
             priorityWeight(b.priority) - priorityWeight(a.priority) ||
             (a.proposedEndDate || "9999").localeCompare(b.proposedEndDate || "9999");
-        Object.values(result).forEach((list) => list.sort(sortFn));
+        Object.keys(result).forEach((groupId) => {
+            result[groupId].sort(sortFn);
+            result[groupId] = applyManualOrder(result[groupId], manualOrder?.[groupId]);
+        });
         return result;
-    }, [actions, statuses, projectsById]);
+    }, [actions, statuses, projectsById, manualOrder]);
 
     const totalOpen = GROUP_DEFS.reduce((sum, g) => sum + groups[g.id].length, 0);
 
     // Primer estado "terminado" configurado: alimenta el círculo de completar
     const doneStatus = useMemo(() => statuses.find(isDoneStatus) || null, [statuses]);
+
+    const actionsByKey = useMemo(() => {
+        const map = new Map();
+        actions.forEach((a) => map.set(taskKey(a), a));
+        return map;
+    }, [actions]);
+
+    const groupKeys = useMemo(() => {
+        const map = {};
+        GROUP_DEFS.forEach((g) => (map[g.id] = groups[g.id].map(taskKey)));
+        return map;
+    }, [groups]);
+
+    const handleReorder = useCallback(
+        (groupId, order) => {
+            if (!currentUser?.uid) return;
+            myTasksOrderService.setGroupOrder(currentUser.uid, groupId, order).catch((err) => {
+                console.error(err);
+                toast.error("No se pudo guardar el orden");
+            });
+        },
+        [currentUser, toast]
+    );
+
+    const { dragKey, dragGroup, liveOrder, dragWidth, previewRef, getHandleProps, getItemProps } = useReorderList({
+        groups: groupKeys,
+        onReorder: handleReorder,
+    });
 
     async function handleStatusChange(action, statusId) {
         const statusCfg = getStatusConfig(statuses, statusId);
@@ -135,6 +192,10 @@ export default function MyTasks() {
                         const list = groups[groupDef.id];
                         if (list.length === 0) return null;
                         const Icon = groupDef.icon;
+                        const displayList =
+                            dragGroup === groupDef.id && liveOrder
+                                ? liveOrder.map((key) => actionsByKey.get(key)).filter(Boolean)
+                                : list;
                         return (
                             <section key={groupDef.id}>
                                 <h2 className={`mb-2 flex items-center gap-2 px-1 text-sm font-semibold uppercase tracking-wide ${groupDef.accent}`}>
@@ -144,22 +205,49 @@ export default function MyTasks() {
                                         {list.length}
                                     </span>
                                 </h2>
-                                <div className="space-y-2">
-                                    {list.map((action) => (
-                                        <TaskCard
-                                            key={`${action.projectId}-${action.id}`}
-                                            action={action}
-                                            project={projectsById[action.projectId]}
-                                            statuses={statuses}
-                                            doneStatus={doneStatus}
-                                            overdue={groupDef.id === "overdue"}
-                                            onStatusChange={handleStatusChange}
-                                        />
-                                    ))}
+                                <div className="space-y-2" data-reorder-list={groupDef.id}>
+                                    {displayList.map((action) => {
+                                        const key = taskKey(action);
+                                        return (
+                                            <TaskCard
+                                                key={key}
+                                                action={action}
+                                                project={projectsById[action.projectId]}
+                                                statuses={statuses}
+                                                doneStatus={doneStatus}
+                                                overdue={groupDef.id === "overdue"}
+                                                onStatusChange={handleStatusChange}
+                                                reorderable={list.length > 1}
+                                                dragging={dragKey === key}
+                                                itemProps={getItemProps(key)}
+                                                handleProps={getHandleProps(groupDef.id, key)}
+                                            />
+                                        );
+                                    })}
                                 </div>
                             </section>
                         );
                     })}
+                </div>
+            )}
+
+            {/* Tarjeta fantasma que sigue al puntero/dedo durante el arrastre */}
+            {dragKey && actionsByKey.get(dragKey) && (
+                <div
+                    ref={previewRef}
+                    className="pointer-events-none fixed left-0 top-0 z-50 will-change-transform"
+                    style={{ width: dragWidth }}
+                    aria-hidden="true"
+                >
+                    <TaskCard
+                        action={actionsByKey.get(dragKey)}
+                        project={projectsById[actionsByKey.get(dragKey).projectId]}
+                        statuses={statuses}
+                        doneStatus={doneStatus}
+                        overdue={dragGroup === "overdue"}
+                        onStatusChange={() => {}}
+                        preview
+                    />
                 </div>
             )}
         </PageContainer>
@@ -171,10 +259,41 @@ export default function MyTasks() {
  * apilados y selector de estado. Cada tarea es su propia tarjeta (no una fila
  * de una lista dividida), para que se lea bien con el pulgar en móvil.
  */
-function TaskCard({ action, project, statuses, doneStatus, overdue, onStatusChange }) {
+function TaskCard({
+    action,
+    project,
+    statuses,
+    doneStatus,
+    overdue,
+    onStatusChange,
+    reorderable = false,
+    dragging = false,
+    preview = false,
+    itemProps,
+    handleProps,
+}) {
     const phase = getPhaseConfig(action.phase);
     return (
-        <div className="card-interactive flex items-start gap-3 p-3">
+        <div
+            {...itemProps}
+            className={cn(
+                "card-interactive flex items-start gap-2 p-3",
+                dragging && "opacity-30",
+                preview && "pointer-events-none rotate-1 scale-[1.02] shadow-card-hover ring-2 ring-brand-500"
+            )}
+        >
+            {reorderable && (
+                <span
+                    {...handleProps}
+                    role="button"
+                    tabIndex={-1}
+                    aria-label="Arrastrar para reordenar"
+                    title="Arrastra para reordenar"
+                    className="-my-1 -ml-1 flex h-7 w-6 flex-shrink-0 cursor-grab touch-none items-center justify-center rounded-lg text-gray-300 active:cursor-grabbing active:bg-surface-2 active:text-brand-500 dark:text-gray-600"
+                >
+                    <GripVertical className="h-4 w-4" aria-hidden="true" />
+                </span>
+            )}
             {doneStatus && (
                 <button
                     type="button"
