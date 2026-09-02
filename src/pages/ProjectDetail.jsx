@@ -24,7 +24,7 @@ import ProjectToolbar from "../components/project/ProjectToolbar";
 import ActionFiltersBar from "../components/project/ActionFiltersBar";
 import ActionsTable from "../components/project/ActionsTable";
 import ActionCardList from "../components/project/ActionCardList";
-import NewActionForm from "../components/project/NewActionForm";
+import NewActionModal from "../components/project/NewActionModal";
 import GanttView from "../components/project/GanttView";
 import KanbanBoard from "../components/project/KanbanBoard";
 import ActivityPanel from "../components/project/ActivityPanel";
@@ -89,6 +89,7 @@ export default function ProjectDetail() {
 
     const [showFilters, setShowFilters] = useState(false);
     const [showNewRow, setShowNewRow] = useState(false);
+    const [newActionStatus, setNewActionStatus] = useState(null);
     const [showActivity, setShowActivity] = useState(false);
     const [showSaveTemplate, setShowSaveTemplate] = useState(false);
 
@@ -311,7 +312,12 @@ export default function ProjectDetail() {
     }
 
     function handleNewAction() {
-        setView("table");
+        setNewActionStatus(null);
+        setShowNewRow(true);
+    }
+
+    function handleAddActionToColumn(statusId) {
+        setNewActionStatus(statusId);
         setShowNewRow(true);
     }
 
@@ -416,22 +422,12 @@ export default function ProjectDetail() {
                     canEditLimits={isCreator}
                     onWipLimitChange={handleWipLimitChange}
                     highlightId={highlightId}
+                    onAddAction={handleAddActionToColumn}
                 />
             ) : (
                 <>
                     {/* Móvil: tarjetas */}
                     <div className="space-y-2 lg:hidden">
-                        {showNewRow && (
-                            <NewActionForm
-                                variant="card"
-                                statuses={statuses}
-                                userOptions={projectUserOptions}
-                                requiredFields={requiredFields}
-                                isColumnVisible={isColumnVisible}
-                                onSubmit={createAction}
-                                onCancel={() => setShowNewRow(false)}
-                            />
-                        )}
                         <ActionCardList
                             actions={sortedActions}
                             statuses={statuses}
@@ -467,9 +463,6 @@ export default function ProjectDetail() {
                             highlightId={highlightId}
                             registerRowRef={registerRowRef("t")}
                             hasActiveFilters={filtersApi.hasActiveFilters}
-                            showNewForm={showNewRow}
-                            onCreate={createAction}
-                            onCancelNew={() => setShowNewRow(false)}
                             projectId={id}
                             currentUserId={uid}
                             projectUsers={projectUsers}
@@ -478,6 +471,16 @@ export default function ProjectDetail() {
                     </div>
                 </>
             )}
+
+            <NewActionModal
+                open={showNewRow}
+                onClose={() => setShowNewRow(false)}
+                statuses={statuses}
+                userOptions={projectUserOptions}
+                requiredFields={requiredFields}
+                initialStatus={newActionStatus}
+                onSubmit={createAction}
+            />
 
             <ActivityPanel open={showActivity} onClose={() => setShowActivity(false)} projectId={id} />
 

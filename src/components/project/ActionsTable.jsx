@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { ChevronDown, ChevronUp, Eye, ListTodo, Paperclip, MessageSquare } from "lucide-react";
 import ActionTableRow from "./ActionTableRow";
-import NewActionForm from "./NewActionForm";
 import { cn } from "../../lib/utils";
 
 const DATE_COLUMNS = ["proposedStartDate", "proposedEndDate", "startDate", "actualEndDate"];
@@ -36,9 +35,6 @@ export default function ActionsTable({
     highlightId,
     registerRowRef,
     hasActiveFilters,
-    showNewForm,
-    onCreate,
-    onCancelNew,
     projectId,
     currentUserId,
     projectUsers,
@@ -199,19 +195,7 @@ export default function ActionsTable({
                         />
                     ))}
 
-                    {showNewForm && (
-                        <NewActionForm
-                            variant="row"
-                            statuses={statuses}
-                            userOptions={projectUserOptions}
-                            requiredFields={requiredFields}
-                            isColumnVisible={isColumnVisible}
-                            onSubmit={onCreate}
-                            onCancel={onCancelNew}
-                        />
-                    )}
-
-                    {actions.length === 0 && !showNewForm && (
+                    {actions.length === 0 && (
                         <tr>
                             <td colSpan={totalColumns} className="py-8 text-center text-gray-400 dark:text-gray-500">
                                 {hasActiveFilters
