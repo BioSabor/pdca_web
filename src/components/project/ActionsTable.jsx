@@ -1,9 +1,7 @@
 import { useState } from "react";
-import { ChevronDown, ChevronUp, Eye, ListTodo, Paperclip, MessageSquare } from "lucide-react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import ActionTableRow from "./ActionTableRow";
 import { cn } from "../../lib/utils";
-
-const DATE_COLUMNS = ["proposedStartDate", "proposedEndDate", "startDate", "actualEndDate"];
 
 function SortIcon({ column, sortColumn, sortDirection }) {
     if (sortColumn !== column) {
@@ -39,21 +37,18 @@ export default function ActionsTable({
     currentUserId,
     projectUsers,
     projectTitle,
+    reorderEnabled = false,
+    dragKey,
+    getItemProps,
+    getHandleProps,
 }) {
-    const [expandedObsId, setExpandedObsId] = useState(null);
-    const [expandedSubsId, setExpandedSubsId] = useState(null);
-    const [expandedAttsId, setExpandedAttsId] = useState(null);
-    const [expandedCommentsId, setExpandedCommentsId] = useState(null);
+    const [expandedId, setExpandedId] = useState(null);
 
+    const showDateColumn = isColumnVisible("proposedEndDate") || isColumnVisible("actualEndDate");
     const totalColumns =
-        6 + // #, orden, prioridad, acción, responsables, estado
+        8 + // asa de arrastre, #, orden, prioridad, acción, responsables, estado, detalles/expandir
         (isColumnVisible("phase") ? 1 : 0) +
-        DATE_COLUMNS.filter(isColumnVisible).length +
-        (isColumnVisible("observations") ? 1 : 0) +
-        1 + // toggle de observaciones
-        (isColumnVisible("subactions") ? 1 : 0) +
-        (isColumnVisible("attachments") ? 1 : 0) +
-        (isColumnVisible("comments") ? 1 : 0) +
+        (showDateColumn ? 1 : 0) +
         1; // eliminar
 
     function assigneeOptionsFor(action) {
@@ -78,9 +73,12 @@ export default function ActionsTable({
 
     return (
         <div className="card scroll-x">
-            <table className="w-full min-w-[980px] divide-y divide-line text-sm">
+            <table className="w-full min-w-[900px] divide-y divide-line text-sm">
                 <thead className="bg-surface-2">
                     <tr>
+                        <th className={cn(thBase, "w-7 px-1")} scope="col">
+                            <span className="sr-only">Reordenar</span>
+                        </th>
                         {sortableHeader("seqId", "#", "w-8 px-3")}
                         {sortableHeader("orden", "Orden", "w-14")}
                         {sortableHeader("priority", "Prior.", "w-14 text-center")}
@@ -104,55 +102,10 @@ export default function ActionsTable({
                         )}
                         {sortableHeader("status", "Estado", "w-32 px-3")}
                         {isColumnVisible("phase") && sortableHeader("phase", "Fase", "w-24")}
-                        {isColumnVisible("proposedStartDate") &&
-                            sortableHeader(
-                                "proposedStartDate",
-                                <>
-                                    F. inicio prop.
-                                    {requiredFields.proposedStartDate && (
-                                        <span className="ml-0.5 text-red-500">*</span>
-                                    )}
-                                </>,
-                                "w-20 text-center leading-3"
-                            )}
-                        {isColumnVisible("proposedEndDate") &&
-                            sortableHeader(
-                                "proposedEndDate",
-                                <>
-                                    F. fin prop.
-                                    {requiredFields.proposedEndDate && (
-                                        <span className="ml-0.5 text-red-500">*</span>
-                                    )}
-                                </>,
-                                "w-20 text-center leading-3"
-                            )}
-                        {isColumnVisible("startDate") &&
-                            sortableHeader("startDate", "F. inicio real", "w-20 text-center leading-3")}
-                        {isColumnVisible("actualEndDate") &&
-                            sortableHeader("actualEndDate", "F. fin real", "w-20 text-center leading-3")}
-                        {isColumnVisible("observations") && (
-                            <th className={cn(thBase, "min-w-[140px]")} scope="col">
-                                Observaciones
-                            </th>
-                        )}
-                        <th className={cn(thBase, "w-10 px-1 text-center")} scope="col" title="Ver observaciones">
-                            <Eye className="mx-auto h-3.5 w-3.5" aria-label="Observaciones" />
+                        {showDateColumn && sortableHeader("proposedEndDate", "Fecha", "w-20")}
+                        <th className={cn(thBase, "w-16 px-2 text-right")} scope="col">
+                            <span className="sr-only">Más detalles</span>
                         </th>
-                        {isColumnVisible("subactions") && (
-                            <th className={cn(thBase, "w-10 px-1 text-center")} scope="col" title="Subacciones">
-                                <ListTodo className="mx-auto h-3.5 w-3.5" aria-label="Subacciones" />
-                            </th>
-                        )}
-                        {isColumnVisible("attachments") && (
-                            <th className={cn(thBase, "w-10 px-1 text-center")} scope="col" title="Adjuntos">
-                                <Paperclip className="mx-auto h-3.5 w-3.5" aria-label="Adjuntos" />
-                            </th>
-                        )}
-                        {isColumnVisible("comments") && (
-                            <th className={cn(thBase, "w-10 px-1 text-center")} scope="col" title="Comentarios">
-                                <MessageSquare className="mx-auto h-3.5 w-3.5" aria-label="Comentarios" />
-                            </th>
-                        )}
                         <th className={cn(thBase, "w-10 px-3")} scope="col">
                             <span className="sr-only">Acciones de fila</span>
                         </th>
@@ -170,28 +123,18 @@ export default function ActionsTable({
                             assigneeOptions={assigneeOptionsFor(action)}
                             projectUserOptions={projectUserOptions}
                             attachmentCount={attachmentCounts[action.id] || 0}
-                            expandedObs={expandedObsId === action.id}
-                            expandedSubs={expandedSubsId === action.id}
-                            expandedAtts={expandedAttsId === action.id}
-                            expandedComments={expandedCommentsId === action.id}
-                            onToggleObs={() =>
-                                setExpandedObsId(expandedObsId === action.id ? null : action.id)
-                            }
-                            onToggleSubs={() =>
-                                setExpandedSubsId(expandedSubsId === action.id ? null : action.id)
-                            }
-                            onToggleAtts={() =>
-                                setExpandedAttsId(expandedAttsId === action.id ? null : action.id)
-                            }
-                            onToggleComments={() =>
-                                setExpandedCommentsId(expandedCommentsId === action.id ? null : action.id)
-                            }
+                            expanded={expandedId === action.id}
+                            onToggleExpand={() => setExpandedId(expandedId === action.id ? null : action.id)}
                             highlighted={highlightId === action.id}
                             rowRef={registerRowRef(action.id)}
                             projectId={projectId}
                             currentUserId={currentUserId}
                             projectUsers={projectUsers}
                             projectTitle={projectTitle}
+                            reorderable={reorderEnabled}
+                            dragging={dragKey === action.id}
+                            itemProps={getItemProps(action.id)}
+                            handleProps={getHandleProps(action.id)}
                         />
                     ))}
 

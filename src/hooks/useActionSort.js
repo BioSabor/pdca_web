@@ -64,7 +64,20 @@ export default function useActionSort(uid, projectId) {
      * helpers = { statuses, getUserName }
      */
     function sortActions(actions, { statuses, getUserName }) {
-        if (!sortColumn) return actions;
+        // Sin columna elegida: orden natural = "orden" manual (nulos al
+        // final, arrastrable en la tabla/tarjetas), y creación como desempate
+        if (!sortColumn) {
+            return [...actions].sort((a, b) => {
+                const va = a.orden ?? null;
+                const vb = b.orden ?? null;
+                if (va !== vb) {
+                    if (va === null) return 1;
+                    if (vb === null) return -1;
+                    return va - vb;
+                }
+                return (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0);
+            });
+        }
         const dir = sortDirection === "asc" ? 1 : -1;
         return [...actions].sort((a, b) => {
             switch (sortColumn) {

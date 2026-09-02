@@ -129,6 +129,13 @@ service cloud.firestore {
         && request.resource.data.read == false;
     }
 
+    // ==================== Orden manual de "Mis Tareas" ====================
+    // Un documento por usuario (id = uid), un campo por grupo con el array
+    // de claves en el orden elegido. Solo su dueño puede leerlo/escribirlo.
+    match /myTasksOrder/{uid} {
+      allow read, write: if isActive() && request.auth.uid == uid;
+    }
+
     // ==================== Plantillas ====================
     match /templates/{templateId} {
       allow read: if isActive();

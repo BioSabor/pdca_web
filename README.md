@@ -7,6 +7,7 @@ Aplicación web para la gestión de equipos y departamentos con metodología PDC
 **Gestión de trabajo**
 - Proyectos agrupados por departamento, con archivado, búsqueda y ordenación
 - Acciones con edición inline en tiempo real: estado configurable, prioridad por niveles (baja/media/alta), fase PDCA, responsables, fechas propuestas/reales, observaciones, subacciones y adjuntos
+- Alta de acciones por voz: graba una nota junto a "Nueva acción", se transcribe (Whisper) y se extraen los campos con un LLM (gpt-5.6-luna) — la descripción se rellena directa y el resto de campos se ofrecen como sugerencia a confirmar con un clic
 - Vistas Tabla, Kanban (arrastrar y soltar) y Gantt por proyecto
 - **Mis Tareas**: todas tus acciones abiertas agrupadas por vencimiento (vencidas/hoy/semana), con cambio rápido de estado
 - Plantillas de proyecto (crear desde plantilla, guardar proyecto como plantilla)
@@ -75,6 +76,7 @@ npx firebase deploy --only firestore:rules,firestore:indexes,storage
 - Desactivar un usuario le bloquea el acceso a los datos, pero su cuenta de Auth sigue existiendo (bórrala desde la consola de Firebase si procede)
 - Las notificaciones se generan desde el cliente que origina el evento; si esa pestaña se cierra a mitad, puede perderse el aviso
 - Las URLs de descarga de adjuntos antiguos llevan token permanente (revocable solo desde la consola)
+- **`VITE_OPENAI_API_KEY` (alta de acciones por voz) viaja embebida en el bundle del cliente**: al no haber backend, cualquiera que inspeccione la app puede leerla y usarla. Es una decisión consciente del proyecto (sin Cloud Functions ni plan de pago); como mitigación, configura un límite de gasto mensual en el dashboard de OpenAI. Si en el futuro se añade un backend, esta llamada debería moverse detrás de él.
 
 ## Variables de entorno
 
@@ -86,6 +88,9 @@ VITE_FIREBASE_STORAGE_BUCKET=
 VITE_FIREBASE_MESSAGING_SENDER_ID=
 VITE_FIREBASE_APP_ID=
 VITE_FIREBASE_MEASUREMENT_ID=
+
+# Opcional: alta de acciones por voz (ver "Limitaciones conocidas")
+VITE_OPENAI_API_KEY=
 ```
 
 ## Scripts
